@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <!-- NuGet Package Configuration -->
+  <PropertyGroup>
+    <PackageId>MT5Bridge.Logging.NLog</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Your Name or Organization</Authors>
+    <Company>Your Company</Company>
+    <Product>MT5Bridge</Product>
+    <Description>NLog adapter for MT5Bridge.Core logging abstractions.</Description>
+    <PackageTags>nlog;logging;adapter;mt5bridge</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/pinealctx/mt5bridge</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/pinealctx/mt5bridge.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!-- Include README in package -->
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!-- Project References -->
+  <ItemGroup>
+    <ProjectReference Include="..\MT5Bridge.Core\MT5Bridge.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Package Dependencies -->
+  <ItemGroup>
+    <PackageReference Include="NLog" Version="6.0.1" />
+  </ItemGroup>
+
+</Project>

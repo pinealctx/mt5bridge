@@ -1,0 +1,62 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MT5Bridge.Core", "MT5Bridge.Core\MT5Bridge.Core.csproj", "{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MT5Bridge.Logging.NLog", "MT5Bridge.Logging.NLog\MT5Bridge.Logging.NLog.csproj", "{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MT5Bridge.Core.Tests", "MT5Bridge.Core.Tests\MT5Bridge.Core.Tests.csproj", "{79840955-9465-452A-9C4B-1DE82C3E1EEE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Debug|x64.Build.0 = Debug|Any CPU
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Debug|x86.Build.0 = Debug|Any CPU
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Release|x64.ActiveCfg = Release|Any CPU
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Release|x64.Build.0 = Release|Any CPU
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Release|x86.ActiveCfg = Release|Any CPU
+		{917FFCD4-0F8F-4491-AA16-15AB6EBBABFB}.Release|x86.Build.0 = Release|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Debug|x64.Build.0 = Debug|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Debug|x86.Build.0 = Debug|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Release|x64.ActiveCfg = Release|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Release|x64.Build.0 = Release|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Release|x86.ActiveCfg = Release|Any CPU
+		{4EA2EB4B-DA00-489A-B128-5970FA6FDC40}.Release|x86.Build.0 = Release|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Debug|x64.Build.0 = Debug|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Debug|x86.Build.0 = Debug|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Release|x64.ActiveCfg = Release|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Release|x64.Build.0 = Release|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Release|x86.ActiveCfg = Release|Any CPU
+		{79840955-9465-452A-9C4B-1DE82C3E1EEE}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
