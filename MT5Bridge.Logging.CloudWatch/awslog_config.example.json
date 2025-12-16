@@ -1,0 +1,10 @@
+{
+    "enabled": true,
+    "log_group": "/mt5bridge/application",
+    "log_stream": "instance-01",
+    "region": "us-east-1",
+    "access_key_id": "YOUR_AWS_ACCESS_KEY_ID",
+    "secret_key": "YOUR_AWS_SECRET_KEY",
+    "batch_size": 100,
+    "batch_timeout_ms": 10000
+}

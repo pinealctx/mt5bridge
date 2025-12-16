@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -9,36 +9,31 @@
 
   <!-- NuGet Package Configuration -->
   <PropertyGroup>
-    <PackageId>MT5Bridge.Logging.NLog</PackageId>
+    <PackageId>MT5Bridge.Logging.CloudWatch</PackageId>
     <Version>1.0.0</Version>
     <Authors>Kun</Authors>
     <Company>xSyphon</Company>
     <Product>MT5Bridge</Product>
-    <Description>NLog adapter for MT5Bridge.Core logging abstractions.</Description>
-    <PackageTags>nlog;logging;adapter;mt5bridge</PackageTags>
+    <Description>AWS CloudWatch NLog Target for MT5Bridge logging infrastructure.</Description>
+    <PackageTags>nlog;logging;aws;cloudwatch;mt5bridge</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/pinealctx/mt5bridge</PackageProjectUrl>
     <RepositoryUrl>https://github.com/pinealctx/mt5bridge.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
-  <!-- Include README in package -->
+  <!-- Package Dependencies -->
   <ItemGroup>
-    <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <PackageReference Include="NLog" Version="6.0.1" />
+    <PackageReference Include="AWSSDK.CloudWatchLogs" Version="3.7.*" />
   </ItemGroup>
 
   <!-- Project References -->
   <ItemGroup>
     <ProjectReference Include="..\MT5Bridge.Core\MT5Bridge.Core.csproj" />
-  </ItemGroup>
-
-  <!-- Package Dependencies -->
-  <ItemGroup>
-    <PackageReference Include="NLog" Version="6.0.1" />
   </ItemGroup>
 
 </Project>
