@@ -1,0 +1,11 @@
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.1
+    hooks:
+      - id: gitleaks
+        args: [ "--config=.gitleaks.toml", "--verbose" ]
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.2.1
+    hooks:
+      - id: golangci-lint
+        args: [ "-c", ".golangci.yml" ]

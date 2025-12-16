@@ -1,0 +1,12 @@
+# Config files, sensitive data
+appsettings.json
+nlog.json
+
+# Published output
+publish/
+publish-*/
+*.zip
+
+# Log files
+logs/
+*.log

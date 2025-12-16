@@ -13,9 +13,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MT5Bridge.Logging.NLog.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MT5Bridge.Logging.NLog.Demo", "MT5Bridge.Logging.NLog.Demo\MT5Bridge.Logging.NLog.Demo.csproj", "{2A37E7B1-35A9-4958-9AA0-F8CC473F940D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MT5Bridge.Logging.NLog.AwsCloudWatch", "MT5Bridge.Logging.NLog.AwsCloudWatch\MT5Bridge.Logging.NLog.AwsCloudWatch.csproj", "{5AE33417-75D2-41B5-8192-45311EDF941C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MT5Bridge.Logging.CloudWatch", "MT5Bridge.Logging.CloudWatch\MT5Bridge.Logging.CloudWatch.csproj", "{5AE33417-75D2-41B5-8192-45311EDF941C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MT5Bridge.Logging.NLog.AwsCloudWatch.Demo", "MT5Bridge.Logging.NLog.AwsCloudWatch.Demo\MT5Bridge.Logging.NLog.AwsCloudWatch.Demo.csproj", "{5CAC749A-CF18-4AF5-9A16-42AEF0787424}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MT5Bridge.Logging.CloudWatch.Demo", "MT5Bridge.Logging.CloudWatch.Demo\MT5Bridge.Logging.CloudWatch.Demo.csproj", "{5CAC749A-CF18-4AF5-9A16-42AEF0787424}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
