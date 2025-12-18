@@ -55,7 +55,7 @@ public class Program
         [Option('p', "password", Required = false, HelpText = "Manager password")]
         public string? Password { get; set; }
 
-        [Option('t', "test", Required = false, HelpText = "Test to run: groups, user, account, deposit, deals")]
+        [Option('t', "test", Required = false, HelpText = "Test to run: groups, user, account, deposit, deals, listen")]
         public string? Test { get; set; }
 
         [Option('u', "user-login", HelpText = "User login for user/account/deposit/deals tests")]
@@ -206,11 +206,43 @@ public class Program
                 }
                 return await TestDealsAsync(manager, options.UserLogin.Value);
 
+            case "listen":
+                return await TestListenAsync(manager);
+
             default:
                 Console.WriteLine($"❌ Unknown test: {options.Test}");
-                Console.WriteLine("Available tests: groups, user, account, deposit, deals");
+                Console.WriteLine("Available tests: groups, user, account, deposit, deals, listen");
                 return 1;
         }
+    }
+
+    private static async Task<int> TestListenAsync(IMT5Manager manager)
+    {
+        Console.WriteLine("\n=== Test: Listen to Trade Events ===\n");
+        Console.WriteLine("Listening for deals, orders, and positions... (Press any key to stop)\n");
+
+        // Subscribe to events
+        manager.DealAdded += (s, deal) => Console.WriteLine($"[DEAL ADDED] {deal.Print()}");
+        manager.DealUpdated += (s, deal) => Console.WriteLine($"[DEAL UPDATED] {deal.Print()}");
+        manager.DealDeleted += (s, deal) => Console.WriteLine($"[DEAL DELETED] {deal.Print()}");
+
+        manager.OrderAdded += (s, order) => Console.WriteLine($"[ORDER ADDED] {order.Print()}");
+        manager.OrderUpdated += (s, order) => Console.WriteLine($"[ORDER UPDATED] {order.Print()}");
+        manager.OrderDeleted += (s, order) => Console.WriteLine($"[ORDER DELETED] {order.Print()}");
+
+        manager.PositionAdded += (s, pos) => Console.WriteLine($"[POSITION ADDED] {pos.Print()}");
+        manager.PositionUpdated += (s, pos) => Console.WriteLine($"[POSITION UPDATED] {pos.Print()}");
+        manager.PositionDeleted += (s, pos) => Console.WriteLine($"[POSITION DELETED] {pos.Print()}");
+
+        // Wait for key press
+        while (!Console.KeyAvailable)
+        {
+            await Task.Delay(100);
+        }
+
+        Console.ReadKey(true);
+        Console.WriteLine("\nStopped listening.");
+        return 0;
     }
 
     private static async Task<int> TestGroupsAsync(IMT5Manager manager)

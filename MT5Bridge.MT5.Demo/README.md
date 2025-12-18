@@ -98,8 +98,9 @@ Copyright (C) 2025 xSyphon
   -s, --server        MT5 server address (e.g., localhost:443)
   -l, --login         Manager login
   -p, --password      Manager password
-  -t, --test          Test to run: groups, user, account, deposit, deals
+  -t, --test          Test to run: groups, user, account, deposit, deals, listen
   -u, --user-login    User login for user/account/deposit/deals tests
+  -a, --amount        Amount for deposit test
   --help              Display this help screen.
   --version           Display version information.
 ```
@@ -149,6 +150,41 @@ Press any key to exit...
 - `ConnectAsync(settings)`
 - `GetGroupsAsync()`
 - `DisconnectAsync()`
+
+### 场景 5: 监听实时交易信息
+
+**命令**：
+```bash
+.\MT5Bridge.MT5.Demo.exe --test listen
+```
+
+**功能**：
+- 连接到 MT5 Server
+- 订阅实时事件：
+    - 成交 (Deals): 新增、更新、删除
+    - 订单 (Orders): 新增、更新、删除
+    - 持仓 (Positions): 新增、更新、删除
+- 保持连接并实时打印接收到的信息
+- 按 `Ctrl+C` 或任意键停止监听
+
+**输出示例**：
+```
+=== MT5Bridge Demo Console ===
+Connecting to localhost:443...
+✅ Connected successfully
+
+=== Test: Listen to Trade Events ===
+Listening for events... Press any key to stop.
+
+[DEAL ADDED] Deal: 123456, Login: 10001, Symbol: EURUSD, Action: Buy, Volume: 0.10, Price: 1.08500
+[POSITION UPDATED] Position: 123456, Login: 10001, Symbol: EURUSD, Volume: 0.10, Price: 1.08500
+...
+```
+
+**测试的 API**：
+- `DealAdded`, `DealUpdated`, `DealDeleted`
+- `OrderAdded`, `OrderUpdated`, `OrderDeleted`
+- `PositionAdded`, `PositionUpdated`, `PositionDeleted`
 
 ---
 

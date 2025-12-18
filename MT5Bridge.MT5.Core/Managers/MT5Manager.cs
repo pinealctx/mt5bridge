@@ -1,6 +1,7 @@
 using MetaQuotes.MT5CommonAPI;
 using MetaQuotes.MT5ManagerAPI;
 using MT5Bridge.Core.Logging;
+using MT5Bridge.MT5.Core.Sinks;
 
 namespace MT5Bridge.MT5.Core.Managers;
 
@@ -20,6 +21,11 @@ public class MT5Manager : IMT5Manager
     private CIMTConGroup? _group;
     private CIMTConGroupArray? _groupArray;
 
+    // Sinks
+    private MT5DealSink? _dealSink;
+    private MT5OrderSink? _orderSink;
+    private MT5PositionSink? _positionSink;
+
     private ConnectionState _state = ConnectionState.Disconnected;
     private MT5ConnectionSettings? _settings;
     private bool _disposed;
@@ -29,6 +35,17 @@ public class MT5Manager : IMT5Manager
     public MT5ConnectionSettings? Settings => _settings;
 
     public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
+
+    // Trading events
+    public event EventHandler<CIMTDeal>? DealAdded;
+    public event EventHandler<CIMTDeal>? DealUpdated;
+    public event EventHandler<CIMTDeal>? DealDeleted;
+    public event EventHandler<CIMTOrder>? OrderAdded;
+    public event EventHandler<CIMTOrder>? OrderUpdated;
+    public event EventHandler<CIMTOrder>? OrderDeleted;
+    public event EventHandler<CIMTPosition>? PositionAdded;
+    public event EventHandler<CIMTPosition>? PositionUpdated;
+    public event EventHandler<CIMTPosition>? PositionDeleted;
 
     public MT5Manager(ILogger logger)
     {
@@ -73,6 +90,11 @@ public class MT5Manager : IMT5Manager
             // Connect
             var result = await Task.Run(() =>
             {
+                // Subscribe to sinks
+                _manager!.DealSubscribe(_dealSink);
+                _manager!.OrderSubscribe(_orderSink);
+                _manager!.PositionSubscribe(_positionSink);
+
                 var res = _manager!.Connect(
                     settings.Server,
                     settings.Login,
@@ -121,7 +143,13 @@ public class MT5Manager : IMT5Manager
         {
             if (_manager != null && _state == ConnectionState.Connected)
             {
-                await Task.Run(() => _manager.Disconnect());
+                await Task.Run(() =>
+                {
+                    _manager.DealUnsubscribe(_dealSink);
+                    _manager.OrderUnsubscribe(_orderSink);
+                    _manager.PositionUnsubscribe(_positionSink);
+                    _manager.Disconnect();
+                });
                 _logger.Info("MT5 disconnected");
             }
             SetState(ConnectionState.Disconnected);
@@ -615,6 +643,37 @@ public class MT5Manager : IMT5Manager
                 return MT5Result.Failure("GroupCreateArray failed");
             }
 
+            // Create sinks
+            _dealSink = new MT5DealSink(
+                deal => DealAdded?.Invoke(this, deal),
+                deal => DealUpdated?.Invoke(this, deal),
+                deal => DealDeleted?.Invoke(this, deal));
+
+            if (_dealSink.RegisterSink() != MTRetCode.MT_RET_OK)
+            {
+                return MT5Result.Failure("DealSink.RegisterSink failed");
+            }
+
+            _orderSink = new MT5OrderSink(
+                order => OrderAdded?.Invoke(this, order),
+                order => OrderUpdated?.Invoke(this, order),
+                order => OrderDeleted?.Invoke(this, order));
+
+            if (_orderSink.RegisterSink() != MTRetCode.MT_RET_OK)
+            {
+                return MT5Result.Failure("OrderSink.RegisterSink failed");
+            }
+
+            _positionSink = new MT5PositionSink(
+                position => PositionAdded?.Invoke(this, position),
+                position => PositionUpdated?.Invoke(this, position),
+                position => PositionDeleted?.Invoke(this, position));
+
+            if (_positionSink.RegisterSink() != MTRetCode.MT_RET_OK)
+            {
+                return MT5Result.Failure("PositionSink.RegisterSink failed");
+            }
+
             _logger.Info("MT5 Manager initialized");
             return MT5Result.Success();
         }
@@ -649,6 +708,11 @@ public class MT5Manager : IMT5Manager
         _account?.Dispose();
         _group?.Dispose();
         _groupArray?.Dispose();
+
+        _dealSink?.Dispose();
+        _orderSink?.Dispose();
+        _positionSink?.Dispose();
+
         _manager?.Dispose();
 
         SMTManagerAPIFactory.Shutdown();

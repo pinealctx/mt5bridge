@@ -29,6 +29,51 @@ public interface IMT5Manager : IDisposable
     event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
 
     /// <summary>
+    /// Deal added event
+    /// </summary>
+    event EventHandler<CIMTDeal>? DealAdded;
+
+    /// <summary>
+    /// Deal updated event
+    /// </summary>
+    event EventHandler<CIMTDeal>? DealUpdated;
+
+    /// <summary>
+    /// Deal deleted event
+    /// </summary>
+    event EventHandler<CIMTDeal>? DealDeleted;
+
+    /// <summary>
+    /// Order added event
+    /// </summary>
+    event EventHandler<CIMTOrder>? OrderAdded;
+
+    /// <summary>
+    /// Order updated event
+    /// </summary>
+    event EventHandler<CIMTOrder>? OrderUpdated;
+
+    /// <summary>
+    /// Order deleted event
+    /// </summary>
+    event EventHandler<CIMTOrder>? OrderDeleted;
+
+    /// <summary>
+    /// Position added event
+    /// </summary>
+    event EventHandler<CIMTPosition>? PositionAdded;
+
+    /// <summary>
+    /// Position updated event
+    /// </summary>
+    event EventHandler<CIMTPosition>? PositionUpdated;
+
+    /// <summary>
+    /// Position deleted event
+    /// </summary>
+    event EventHandler<CIMTPosition>? PositionDeleted;
+
+    /// <summary>
     /// Connect to MT5 server
     /// </summary>
     Task<MT5Result> ConnectAsync(MT5ConnectionSettings settings, CancellationToken cancellationToken = default);

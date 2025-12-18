@@ -57,3 +57,4 @@ nunit-*.xml
 .vscode
 .doc
 .task
+.vs
