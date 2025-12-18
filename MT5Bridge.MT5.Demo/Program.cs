@@ -1,3 +1,6 @@
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.Loader;
 using CommandLine;
 using MetaQuotes.MT5CommonAPI;
 using Microsoft.Extensions.Configuration;
@@ -11,6 +14,36 @@ namespace MT5Bridge.MT5.Demo;
 
 public class Program
 {
+    [ModuleInitializer]
+    public static void RegisterAssemblyResolver()
+    {
+        // Ensure current directory is the same as the executable directory
+        // This helps in finding config files and DLLs when run from different locations
+        string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        if (Directory.GetCurrentDirectory() != baseDirectory)
+        {
+            Directory.SetCurrentDirectory(baseDirectory);
+        }
+
+        // Register assembly resolver for MT5 SDK DLLs
+        // Since they are marked as Private=false in csproj, they are not in deps.json
+        // and need manual resolution when published as a single file.
+        AssemblyLoadContext.Default.Resolving += OnAssemblyResolve;
+    }
+
+    private static Assembly? OnAssemblyResolve(AssemblyLoadContext context, AssemblyName assemblyName)
+    {
+        if (assemblyName.Name != null && assemblyName.Name.StartsWith("MetaQuotes.MT5"))
+        {
+            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{assemblyName.Name}.dll");
+            if (File.Exists(path))
+            {
+                return context.LoadFromAssemblyPath(path);
+            }
+        }
+        return null;
+    }
+
     public class Options
     {
         [Option('s', "server", Required = false, HelpText = "MT5 server address (e.g., localhost:443)")]
