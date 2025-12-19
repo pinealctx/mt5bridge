@@ -166,6 +166,8 @@ public class PositionModel
     // Custom API Data
     /// <summary>Custom API data.</summary>
     public List<ApiDataModel> ApiData { get; set; } = new();
+
+    public override string ToString() => MT5JsonSerializer.ToReadableJson(this);
 }
 
 public static class PositionMapper
