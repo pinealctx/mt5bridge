@@ -9,8 +9,8 @@
     <PlatformTarget>x64</PlatformTarget>
     
     <!-- Single file publishing configuration -->
-		<PublishSingleFile>true</PublishSingleFile>
-    <Platforms>x64</Platforms>
+    <PublishSingleFile>true</PublishSingleFile>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -32,6 +32,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MT5Bridge.Core\MT5Bridge.Core.csproj" />
     <ProjectReference Include="..\MT5Bridge.MT5.Core\MT5Bridge.MT5.Core.csproj" />
     <ProjectReference Include="..\MT5Bridge.Logging.NLog\MT5Bridge.Logging.NLog.csproj" />
   </ItemGroup>

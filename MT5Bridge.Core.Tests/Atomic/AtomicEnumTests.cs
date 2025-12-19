@@ -48,7 +48,7 @@ public class AtomicEnumTests
     }
 
     [Fact]
-    public void ThreadSafety_ConcurrentEnumChanges()
+    public async Task ThreadSafety_ConcurrentEnumChanges()
     {
         var atomic = new AtomicEnum<TestStatus>(TestStatus.Idle);
         var iterations = 1000;
@@ -79,6 +79,6 @@ public class AtomicEnumTests
             })
         };
 
-        Task.WaitAll(tasks.ToArray());
+        await Task.WhenAll(tasks);
     }
 }

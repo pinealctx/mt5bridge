@@ -96,7 +96,7 @@ public class LoggingFactory
         }
 
         // Update reference to merged configuration
-        _config = LogManager.Configuration;
+        _config = LogManager.Configuration ?? _config;
         return this;
     }
 
@@ -123,7 +123,7 @@ public class LoggingFactory
         }
 
         // Update reference to merged configuration
-        _config = LogManager.Configuration;
+        _config = LogManager.Configuration ?? _config;
         return this;
     }
 

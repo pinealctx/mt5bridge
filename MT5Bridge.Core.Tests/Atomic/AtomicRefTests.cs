@@ -69,7 +69,7 @@ public class AtomicRefTests
     }
 
     [Fact]
-    public void ThreadSafety_ConcurrentReferenceSwaps()
+    public async Task ThreadSafety_ConcurrentReferenceSwaps()
     {
         var objects = Enumerable.Range(0, 10)
             .Select(i => new TestObject { Value = i, Name = $"Object{i}" })
@@ -95,7 +95,7 @@ public class AtomicRefTests
             }));
         }
 
-        Task.WaitAll(tasks.ToArray());
+        await Task.WhenAll(tasks);
     }
 
     [Fact]

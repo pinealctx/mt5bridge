@@ -55,7 +55,7 @@ public class AtomicDoubleTests
     }
 
     [Fact]
-    public void ThreadSafety_ConcurrentAccess()
+    public async Task ThreadSafety_ConcurrentAccess()
     {
         var atomic = new AtomicDouble(0.0);
         var iterations = 1000;
@@ -76,6 +76,6 @@ public class AtomicDoubleTests
             }));
         }
 
-        Task.WaitAll(tasks.ToArray());
+        await Task.WhenAll(tasks);
     }
 }

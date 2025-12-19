@@ -36,7 +36,7 @@ public class AtomicBoolTests
     }
 
     [Fact]
-    public void ThreadSafety_MultipleThreadsCanAccessSafely()
+    public async Task ThreadSafety_MultipleThreadsCanAccessSafely()
     {
         var atomic = new AtomicBool(false);
         var iterations = 1000;
@@ -56,7 +56,7 @@ public class AtomicBoolTests
             }));
         }
 
-        Task.WaitAll(tasks.ToArray());
+        await Task.WhenAll(tasks);
 
         // Should have toggled 10 * 1000 times
         Assert.Equal(10 * iterations, toggleCount);

@@ -126,6 +126,7 @@ try {
         $projectFile,
         "-c", $Configuration,
         "-r", "win-x64",
+        "-p:Platform=x64",
         "-o", $OutputPath,
         "--nologo"
     )

@@ -15,7 +15,7 @@ namespace MT5Bridge.MT5.Demo;
 public class Program
 {
     [ModuleInitializer]
-    public static void RegisterAssemblyResolver()
+    internal static void RegisterAssemblyResolver()
     {
         // Ensure current directory is the same as the executable directory
         // This helps in finding config files and DLLs when run from different locations
@@ -222,17 +222,17 @@ public class Program
         Console.WriteLine("Listening for deals, orders, and positions... (Press any key to stop)\n");
 
         // Subscribe to events
-        manager.DealAdded += (s, deal) => Console.WriteLine($"[DEAL ADDED] {deal.Print()}");
-        manager.DealUpdated += (s, deal) => Console.WriteLine($"[DEAL UPDATED] {deal.Print()}");
-        manager.DealDeleted += (s, deal) => Console.WriteLine($"[DEAL DELETED] {deal.Print()}");
+        manager.DealAdded += OnDealAdded;
+        manager.DealUpdated += OnDealUpdated;
+        manager.DealDeleted += OnDealDeleted;
 
-        manager.OrderAdded += (s, order) => Console.WriteLine($"[ORDER ADDED] {order.Print()}");
-        manager.OrderUpdated += (s, order) => Console.WriteLine($"[ORDER UPDATED] {order.Print()}");
-        manager.OrderDeleted += (s, order) => Console.WriteLine($"[ORDER DELETED] {order.Print()}");
+        manager.OrderAdded += OnOrderAdded;
+        manager.OrderUpdated += OnOrderUpdated;
+        manager.OrderDeleted += OnOrderDeleted;
 
-        manager.PositionAdded += (s, pos) => Console.WriteLine($"[POSITION ADDED] {pos.Print()}");
-        manager.PositionUpdated += (s, pos) => Console.WriteLine($"[POSITION UPDATED] {pos.Print()}");
-        manager.PositionDeleted += (s, pos) => Console.WriteLine($"[POSITION DELETED] {pos.Print()}");
+        manager.PositionAdded += OnPositionAdded;
+        manager.PositionUpdated += OnPositionUpdated;
+        manager.PositionDeleted += OnPositionDeleted;
 
         // Wait for key press
         while (!Console.KeyAvailable)
@@ -241,9 +241,72 @@ public class Program
         }
 
         Console.ReadKey(true);
+
+        // Unsubscribe
+        manager.DealAdded -= OnDealAdded;
+        manager.DealUpdated -= OnDealUpdated;
+        manager.DealDeleted -= OnDealDeleted;
+
+        manager.OrderAdded -= OnOrderAdded;
+        manager.OrderUpdated -= OnOrderUpdated;
+        manager.OrderDeleted -= OnOrderDeleted;
+
+        manager.PositionAdded -= OnPositionAdded;
+        manager.PositionUpdated -= OnPositionUpdated;
+        manager.PositionDeleted -= OnPositionDeleted;
+
         Console.WriteLine("\nStopped listening.");
         return 0;
     }
+
+    #region Event Handlers
+
+    private static void OnDealAdded(object? sender, CIMTDeal deal)
+    {
+        Console.WriteLine($"[DEAL ADDED] {deal.Print()}");
+    }
+
+    private static void OnDealUpdated(object? sender, CIMTDeal deal)
+    {
+        Console.WriteLine($"[DEAL UPDATED] {deal.Print()}");
+    }
+
+    private static void OnDealDeleted(object? sender, CIMTDeal deal)
+    {
+        Console.WriteLine($"[DEAL DELETED] {deal.Print()}");
+    }
+
+    private static void OnOrderAdded(object? sender, CIMTOrder order)
+    {
+        Console.WriteLine($"[ORDER ADDED] {order.Print()}");
+    }
+
+    private static void OnOrderUpdated(object? sender, CIMTOrder order)
+    {
+        Console.WriteLine($"[ORDER UPDATED] {order.Print()}");
+    }
+
+    private static void OnOrderDeleted(object? sender, CIMTOrder order)
+    {
+        Console.WriteLine($"[ORDER DELETED] {order.Print()}");
+    }
+
+    private static void OnPositionAdded(object? sender, CIMTPosition pos)
+    {
+        Console.WriteLine($"[POSITION ADDED] {pos.Print()}");
+    }
+
+    private static void OnPositionUpdated(object? sender, CIMTPosition pos)
+    {
+        Console.WriteLine($"[POSITION UPDATED] {pos.Print()}");
+    }
+
+    private static void OnPositionDeleted(object? sender, CIMTPosition pos)
+    {
+        Console.WriteLine($"[POSITION DELETED] {pos.Print()}");
+    }
+
+    #endregion
 
     private static async Task<int> TestGroupsAsync(IMT5Manager manager)
     {

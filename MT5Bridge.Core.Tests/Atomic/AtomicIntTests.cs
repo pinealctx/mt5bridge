@@ -39,7 +39,7 @@ public class AtomicIntTests
     }
 
     [Fact]
-    public void ThreadSafety_ConcurrentStoresAndLoads()
+    public async Task ThreadSafety_ConcurrentStoresAndLoads()
     {
         var atomic = new AtomicInt(0);
         var iterations = 10000;
@@ -60,6 +60,6 @@ public class AtomicIntTests
             }));
         }
 
-        Task.WaitAll(tasks.ToArray());
+        await Task.WhenAll(tasks);
     }
 }

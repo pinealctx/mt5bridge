@@ -48,7 +48,7 @@ public class AtomicLongTests
     }
 
     [Fact]
-    public void ThreadSafety_ConcurrentIncrements()
+    public async Task ThreadSafety_ConcurrentIncrements()
     {
         var atomic = new AtomicLong(0);
         var threadsCount = 10;
@@ -66,7 +66,7 @@ public class AtomicLongTests
             }));
         }
 
-        Task.WaitAll(tasks.ToArray());
+        await Task.WhenAll(tasks);
 
         // Should have incremented exactly threadsCount * incrementsPerThread times
         Assert.Equal(threadsCount * incrementsPerThread, atomic.Load());
