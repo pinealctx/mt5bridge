@@ -36,6 +36,26 @@ public class AtomicBoolTests
     }
 
     [Fact]
+    public void CompareExchange_ShouldUpdateWhenMatch()
+    {
+        var atomic = new AtomicBool(true);
+        var original = atomic.CompareExchange(false, true);
+
+        Assert.True(original);
+        Assert.False(atomic.Load());
+    }
+
+    [Fact]
+    public void CompareExchange_ShouldNotUpdateWhenNoMatch()
+    {
+        var atomic = new AtomicBool(true);
+        var original = atomic.CompareExchange(false, false);
+
+        Assert.True(original);
+        Assert.True(atomic.Load());
+    }
+
+    [Fact]
     public async Task ThreadSafety_MultipleThreadsCanAccessSafely()
     {
         var atomic = new AtomicBool(false);

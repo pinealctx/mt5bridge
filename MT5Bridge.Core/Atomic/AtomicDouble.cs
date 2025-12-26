@@ -14,6 +14,11 @@ public class AtomicDouble
         return Volatile.Read(ref _value);
     }
 
+    public double CompareExchange(double value, double comparand)
+    {
+        return Interlocked.CompareExchange(ref _value, value, comparand);
+    }
+
     public void Store(double value)
     {
         Interlocked.Exchange(ref _value, value);

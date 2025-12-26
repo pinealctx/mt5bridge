@@ -1,10 +1,13 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
+    <!-- Enable Roslyn Analyzers -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
   </PropertyGroup>
 
   <!-- NuGet Package Configuration -->
@@ -14,8 +17,8 @@
     <Authors>Kun</Authors>
     <Company>xSyphon</Company>
     <Product>MT5Bridge</Product>
-    <Description>Lightweight utility library with atomic operations, timing utilities, text helpers, and logging abstractions. Zero external dependencies.</Description>
-    <PackageTags>utility;atomic;threading;timing;logging;abstractions</PackageTags>
+    <Description>Lightweight utility library with atomic operations, timing utilities, and text helpers.</Description>
+    <PackageTags>utility;atomic;threading;timing</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/pinealctx/mt5bridge</PackageProjectUrl>
     <RepositoryUrl>https://github.com/pinealctx/mt5bridge.git</RepositoryUrl>
@@ -29,6 +32,8 @@
   <!-- Include README in package -->
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <PackageReference Include="System.Text.Json" Version="10.0.1" />
+    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0" />
   </ItemGroup>
 
 </Project>

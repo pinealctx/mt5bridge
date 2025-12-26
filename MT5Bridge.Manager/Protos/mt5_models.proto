@@ -1,0 +1,521 @@
+syntax = "proto3";
+
+package mt5bridge.manager.models;
+
+option csharp_namespace = "MT5Bridge.Manager.Models.Proto";
+
+// Trade activation flags
+enum TradeActivationFlags {
+    TRADE_ACTIVATION_NONE = 0;           // No flags
+    TRADE_ACTIVATION_NO_LIMIT = 1;      // Do not handle reaching of the Limit level. Only used for orders.
+    TRADE_ACTIVATION_NO_STOP = 2;       // Do not handle the reaching of the stop level. Only used for orders.
+    TRADE_ACTIVATION_NO_SLIMIT = 4;     // Do not handle reaching of the Stop-Limit level. Only used for orders.
+    TRADE_ACTIVATION_NO_SL = 8;         // Do not handle activation upon Stop Loss. Only used for positions.
+    TRADE_ACTIVATION_NO_TP = 16;        // Do not handle activation upon Take Profit. Only used for positions.
+    TRADE_ACTIVATION_NO_SO = 32;        // Do not handle activation upon Stop-Out. Used for positions and orders.
+    TRADE_ACTIVATION_NO_EXPIRATION = 64; // Do not handle order cancellation upon expiration. Only used for orders.
+    TRADE_ACTIVATION_ALL = 127;         // All flags are set
+}
+
+// Trade modification flags
+enum TradeModifyFlags {
+    TRADE_MODIFY_NONE = 0;              // No flags
+    TRADE_MODIFY_ADMIN = 1;             // Modified by an administrator
+    TRADE_MODIFY_MANAGER = 2;           // Open price has been modified by a manager
+    TRADE_MODIFY_POSITION = 4;          // Modification flags have been inherited from the position
+    TRADE_MODIFY_RESTORE = 8;           // Restored
+    TRADE_MODIFY_API_ADMIN = 16;        // Modified using the administrator interface of the Manager API
+    TRADE_MODIFY_API_MANAGER = 32;      // Modified using the manager interface of the Manager API
+    TRADE_MODIFY_API_SERVER = 64;       // Modified using the Server API
+    TRADE_MODIFY_API_GATEWAY = 128;     // Modified using the Gateway API
+    TRADE_MODIFY_ALL = 255;             // All flags are set
+}
+
+// Custom API data
+message ApiDataModel {
+    uint32 app_id = 1;                  // Application ID
+    uint32 id = 2;                      // Data ID
+    uint64 value = 3;                   // Data value
+}
+
+// Deal action
+enum DealAction {
+    DEAL_ACTION_BUY = 0;                // A Buy deal
+    DEAL_ACTION_SELL = 1;               // A Sell deal
+    DEAL_ACTION_BALANCE = 2;            // A balance operation
+    DEAL_ACTION_CREDIT = 3;             // Credit operation
+    DEAL_ACTION_CHARGE = 4;             // Additional charges/withdrawals
+    DEAL_ACTION_CORRECTION = 5;         // Correcting operations
+    DEAL_ACTION_BONUS = 6;              // Bonuses. Operations of this type affect the credit assets of a client
+    DEAL_ACTION_COMMISSION = 7;         // Commission
+    DEAL_ACTION_COMMISSION_DAILY = 8;   // Daily commission
+    DEAL_ACTION_COMMISSION_MONTHLY = 9; // Monthly commission
+    DEAL_ACTION_AGENT_DAILY = 10;       // Daily agent commission
+    DEAL_ACTION_AGENT_MONTHLY = 11;     // Monthly agent commission
+    DEAL_ACTION_INTEREST_RATE = 12;     // Accrual of annual interest
+    DEAL_ACTION_BUY_CANCELED = 13;      // A canceled Buy deal
+    DEAL_ACTION_SELL_CANCELED = 14;     // A canceled Sell deal
+    DEAL_ACTION_DIVIDEND = 15;          // Dividend operations
+    DEAL_ACTION_DIVIDEND_FRANKED = 16;  // Franked (non-taxable) dividend operations (tax is paid by a company, not a client)
+    DEAL_ACTION_TAX = 17;               // Charging a tax
+    DEAL_ACTION_AGENT = 18;             // Charging an agent commission. Used during an instant commission charge to an agent (each time the agent's client performs a deal)
+    DEAL_ACTION_SO_COMPENSATION = 19;   // An operation connected with the compensation of a negative account after the Stop Out event
+    DEAL_ACTION_SO_COMPENSATION_CREDIT = 20; // Withdrawing credit funds after a negative balance compensation operation
+}
+
+// Entry flag
+enum EntryFlag {
+    ENTRY_FLAG_IN = 0;                  // Entering the market or adding the volume
+    ENTRY_FLAG_OUT = 1;                 // Exit from the market or partial closure
+    ENTRY_FLAG_INOUT = 2;               // The deal that closed an existing position and opened a new one in the opposite direction. It is only used with the netting position accounting system.
+    ENTRY_FLAG_OUT_BY = 3;              // Close by : a simultaneous closure of two opposite positions of the same financial instrument. This operation type is only used in the hedging mode.
+}
+
+// Deal reason
+enum DealReason {
+    DEAL_REASON_CLIENT = 0;             // The deal is conducted by a client manually through the client terminal
+    DEAL_REASON_EXPERT = 1;             // The deal is conducted by a client using an Expert Advisor
+    DEAL_REASON_DEALER = 2;             // The deal is conducted by a dealer through the manager terminal
+    DEAL_REASON_SL = 3;                 // The deal is conducted as a result of Stop Loss activation
+    DEAL_REASON_TP = 4;                 // The deal is conducted as a result of Take Profit activation
+    DEAL_REASON_SO = 5;                 // The deal is conducted when the client reached the Stop-Out level
+    DEAL_REASON_ROLLOVER = 6;           // The deal is conducted when reopening a position for charging swaps
+    DEAL_REASON_EXTERNAL_CLIENT = 7;    // The deal is conducted from an external trading system. As opposed to DEAL_REASON_EXTERNAL_SERVICE, commission is charged in this type of deal.
+    DEAL_REASON_VMARGIN = 8;            // The deal is conducted to charge the variation margin
+    DEAL_REASON_GATEWAY = 9;            // The deal is conducted by a MetaTrader 5 gateway connected to the platform
+    DEAL_REASON_SIGNAL = 10;            // The deal is conducted as a result of copying a trading signal according to the subscription in the client terminal
+    DEAL_REASON_SETTLEMENT = 11;        // Forced closing of a position due to a futures/option delivery date coming into effect
+    DEAL_REASON_TRANSFER = 12;          // The deal is conducted as a result of relocating a position with a calculated price to a new symbol with the same underlying asset
+    DEAL_REASON_SYNC = 13;              // The deal is conducted while synchronizing a trading account with an external system
+    DEAL_REASON_EXTERNAL_SERVICE = 14;  // Deal performed from an external trading system for technical reasons (for example, to correct the trade state of a client). Commission is not charged on this type of deals.
+    DEAL_REASON_MIGRATION = 15;         // The deal is created while importing clients' trading operations from the MetaTrader 4 server
+    DEAL_REASON_MOBILE = 16;            // The deal is conducted via the MetaTrader 5 mobile terminal for Android or iPhone
+    DEAL_REASON_WEB = 17;               // The deal is conducted via the web terminal
+    DEAL_REASON_SPLIT = 18;             // The deal is conducted as a result of a symbol split
+    DEAL_REASON_CORPORATE_ACTION = 19;  // The deal is created as a result of a corporate action, such as consolidating or renaming securities, transferring a client to a different account, etc.
+}
+
+// Deal model
+message DealModel {
+    uint64 deal = 1;                    // Ticket of a deal
+    string external_id = 2;             // Deal ID in external trading systems
+    uint64 login = 3;                   // Login of the client, to whom the deal belongs
+    uint64 dealer = 4;                  // Login of a dealer, who has processed a deal
+    uint64 order = 5;                   // Ticket of the order, as a result of which a deal was executed
+    string symbol = 6;                  // Symbol, for which a deal is executed
+    DealAction action = 7;              // Type of action performed with a deal
+    EntryFlag entry = 8;                // Deal direction
+    DealReason reason = 9;              // Reason for deal execution
+    uint32 digits = 10;                 // Number of decimal places in the price of a deal
+    uint32 digits_currency = 11;        // Number of decimal places the deposit currency of a client who has executed the deal
+    double contract_size = 12;          // Contract size of the symbol, for which a deal is executed
+    int64 time = 13;                    // Time of a deal
+    int64 time_msc = 14;                // Time of a deal execution in milliseconds
+    double price = 15;                  // Price of a deal
+    double price_position = 16;         // Price of the position closed by the deal
+    double price_sl = 17;               // Stop Loss level of a deal
+    double price_tp = 18;               // Take Profit level of a deal
+    double price_gateway = 19;          // Actual price of a deal executed via a gateway in an external trading system, not taking into account the gateway price transformation settings
+    uint64 volume = 20;                 // Deal volume
+    uint64 volume_closed = 21;          // Position volume that was closed by the deal
+    uint64 volume_ext = 22;             // Deal volume with an extended accuracy
+    uint64 volume_closed_ext = 23;      // Extended accuracy volume of a position that was closed by this deal
+    double profit = 24;                 // Value of the profit from the deal execution
+    double profit_raw = 25;             // Value of profit/loss resulting from the deal execution. The profit/loss is expressed in the profit currency of the symbol, for which a deal is executed.
+    double storage = 26;                // Swap size for a deal
+    double commission = 27;             // Amount of commission charged for a deal
+    double fee = 28;                    // Fee amount per deal
+    double value = 29;                  // Deal value in client deposit currency
+    double obsolete_value = 30;         // Obsolete value
+    double rate_profit = 31;            // Exchange rate of the profit currency of a deal to the deposit currency of a client group
+    double rate_margin = 32;            // Exchange rate of the margin currency of a deal to the client's deposit currency
+    double tick_value = 33;             // Tick price for a deal
+    double tick_size = 34;              // Tick size for a deal
+    double market_bid = 35;             // Market Bid price as at the time of deal execution by the server
+    double market_ask = 36;             // Market Ask price as at the time of deal execution by the server
+    double market_last = 37;            // Market Last price as at the time of deal execution by the server
+    uint64 expert_id = 38;              // ID of the Expert Advisor that has executed a deal
+    uint64 position_id = 39;            // Position ID (ticket) for a deal
+    string comment = 40;                // Comment to a deal
+    string gateway = 41;                // ID of a trade gateway, using which the deal was executed
+    uint64 flags = 42;                  // Common flags of a deal
+    TradeModifyFlags modification_flags = 43; // Deal modification flags
+    repeated ApiDataModel api_data = 44; // Custom API data
+}
+
+// Order type
+enum OrderType {
+    ORDER_TYPE_BUY = 0;                 // A Buy order
+    ORDER_TYPE_SELL = 1;                // A Sell order
+    ORDER_TYPE_BUY_LIMIT = 2;           // A Buy Limit order
+    ORDER_TYPE_SELL_LIMIT = 3;          // A Sell Limit order
+    ORDER_TYPE_BUY_STOP = 4;            // A Buy Stop order
+    ORDER_TYPE_SELL_STOP = 5;           // A Sell Stop order
+    ORDER_TYPE_BUY_STOP_LIMIT = 6;      // A Buy Stop Limit order
+    ORDER_TYPE_SELL_STOP_LIMIT = 7;     // A Sell Stop Limit order
+    ORDER_TYPE_CLOSE_BY = 8;            // A Close By order : a simultaneous closure of two opposite positions of the same financial instrument. This operation type is only used in the hedging mode.
+}
+
+// Order filling type
+enum OrderFilling {
+    ORDER_FILLING_FOK = 0;              // The FOK (Fill or Kill) policy indicates that an order can only be executed in the specified volume. If the necessary amount of a financial instrument is not currently available in the market, the order will not be executed. The required volume can be filled using several offers available at the moment.
+    ORDER_FILLING_IOC = 1;              // The IOC (Immediate or Cancel) policy indicates that a deal can be executed in the maximum volume available in the market within the volume specified in the order. If the order cannot be filled completely, the available volume will be filled, and the remaining volume will be canceled.
+    ORDER_FILLING_RETURN = 2;           // The Return policy is only used for market, Limit and Stop Limit orders. In case of partial filling, an order with the remaining volume is not canceled, but is processed further. This policy is not used for Stop and Stop Limit orders when they are activated.
+    ORDER_FILLING_BOC = 3;              // The BOC (Book or Cancel) policy indicates that an order can only be placed in the Depth of Market. If the order can be executed immediately when placed, it is canceled. This policy is used for Limit orders.
+}
+
+// Order expiration type
+enum OrderTime {
+    ORDER_TIME_GTC = 0;                 // The order will be in the queue until it is canceled.
+    ORDER_TIME_DAY = 1;                 // The order will be in the queue only during the current trading day.
+    ORDER_TIME_SPECIFIED = 2;           // The order will be in the queue until the time specified in the order.
+    ORDER_TIME_SPECIFIED_DAY = 3;       // The order will be in the queue until the end of the day specified in the order.
+}
+
+// Order state
+enum OrderState {
+    ORDER_STATE_STARTED = 0;            // The order correctness has been checked, but it has not yet been accepted by the broker.
+    ORDER_STATE_PLACED = 1;             // The order has been accepted.
+    ORDER_STATE_CANCELED = 2;           // The order has been canceled by a client.
+    ORDER_STATE_PARTIAL = 3;            // The order has been partially filled.
+    ORDER_STATE_FILLED = 4;             // The order has been filled.
+    ORDER_STATE_REJECTED = 5;           // The order has been rejected.
+    ORDER_STATE_EXPIRED = 6;            // The order has been canceled upon expiration.
+    ORDER_STATE_REQUEST_ADD = 7;        // The order is being registered (placed in the system).
+    ORDER_STATE_REQUEST_MODIFY = 8;     // The order is being modified (changing the order parameters).
+    ORDER_STATE_REQUEST_CANCEL = 9;     // The order is being deleted (removing the order from the system).
+}
+
+// Order activation type
+enum OrderActivation {
+    ORDER_ACTIVATION_NONE = 0;          // No activation
+    ORDER_ACTIVATION_PENDING = 1;       // Pending order activation
+    ORDER_ACTIVATION_STOP_LIMIT = 2;    // Stop Limit order activation
+    ORDER_ACTIVATION_EXPIRATION = 3;    // Order cancellation upon expiration
+    ORDER_ACTIVATION_STOP_OUT = 4;      // Order cancellation upon Stop Out
+}
+
+// Order reason
+enum OrderReason {
+    ORDER_REASON_CLIENT = 0;            // The order is placed by a client manually through the client terminal
+    ORDER_REASON_EXPERT = 1;            // The order is placed by a client using an Expert Advisor
+    ORDER_REASON_DEALER = 2;            // The order is placed by a dealer through the manager terminal
+    ORDER_REASON_SL = 3;                // The order is placed as a result of Stop Loss activation
+    ORDER_REASON_TP = 4;                // The order is placed as a result of Take Profit activation
+    ORDER_REASON_SO = 5;                // The order is placed when the client reached the Stop-Out level
+    ORDER_REASON_ROLLOVER = 6;          // The order is placed when reopening a position for charging swaps
+    ORDER_REASON_EXTERNAL_CLIENT = 7;   // The order is placed from an external trading system. As opposed to ORDER_REASON_EXTERNAL_SERVICE, commission is charged in this type of order.
+    ORDER_REASON_VMARGIN = 8;           // The order is placed to charge the variation margin
+    ORDER_REASON_GATEWAY = 9;           // The order is placed by a MetaTrader 5 gateway connected to the platform
+    ORDER_REASON_SIGNAL = 10;           // The order is placed as a result of copying a trading signal according to the subscription in the client terminal
+    ORDER_REASON_SETTLEMENT = 11;       // Forced closing of a position due to a futures/option delivery date coming into effect
+    ORDER_REASON_TRANSFER = 12;         // The order is placed as a result of relocating a position with a calculated price to a new symbol with the same underlying asset
+    ORDER_REASON_SYNC = 13;             // The order is placed while synchronizing a trading account with an external system
+    ORDER_REASON_EXTERNAL_SERVICE = 14; // Order placed from an external trading system for technical reasons (for example, to correct the trade state of a client). Commission is not charged on this type of orders.
+    ORDER_REASON_MIGRATION = 15;        // The order is created while importing clients' trading operations from the MetaTrader 4 server
+    ORDER_REASON_MOBILE = 16;           // The order is placed via the MetaTrader 5 mobile terminal for Android or iPhone
+    ORDER_REASON_WEB = 17;              // The order is placed via the web terminal
+    ORDER_REASON_SPLIT = 18;            // The order is placed as a result of a symbol split
+    ORDER_REASON_CORPORATE_ACTION = 19; // The order is created as a result of a corporate action, such as consolidating or renaming securities, transferring a client to a different account, etc.
+}
+
+// Order model
+message OrderModel {
+    uint64 order = 1;                   // Ticket of an order
+    string external_id = 2;             // Order ID in external trading systems
+    uint64 login = 3;                   // Login of the client, to whom the order belongs
+    uint64 dealer = 4;                  // Login of a dealer, who has processed an order
+    string symbol = 5;                  // Symbol, for which an order is placed
+    uint32 digits = 6;                  // Number of decimal places in the price of an order
+    uint32 digits_currency = 7;         // Number of decimal places the deposit currency of a client who has placed the order
+    double contract_size = 8;           // Contract size of the symbol, for which an order is placed
+    OrderState state = 9;               // Order state
+    OrderReason reason = 10;            // Reason for order placement
+    int64 time_setup = 11;              // Time of an order placement
+    int64 time_expiration = 12;         // Order expiration time
+    int64 time_done = 13;               // Time of an order execution or cancellation
+    int64 time_setup_msc = 14;          // Time of an order placement in milliseconds
+    int64 time_done_msc = 15;           // Time of an order execution or cancellation in milliseconds
+    OrderType type = 16;                // Order type
+    OrderFilling type_fill = 17;        // Order filling policy
+    OrderTime type_time = 18;           // Order lifetime
+    double price_order = 19;            // Price specified in an order
+    double price_trigger = 20;          // Stop-Limit order trigger price
+    double price_current = 21;          // Current price of the symbol, for which an order is placed
+    double price_sl = 22;               // Stop Loss level of an order
+    double price_tp = 23;               // Take Profit level of an order
+    uint64 volume_initial = 24;         // Initial volume of an order
+    uint64 volume_current = 25;         // Unfilled volume of an order
+    uint64 volume_initial_ext = 26;     // Initial volume of an order with an extended accuracy
+    uint64 volume_current_ext = 27;     // Unfilled volume of an order with an extended accuracy
+    uint64 expert_id = 28;              // ID of the Expert Advisor that has placed an order
+    uint64 position_id = 29;            // Position ID (ticket) for an order
+    uint64 position_by_id = 30;         // Opposite position ID (ticket) for an order
+    OrderActivation activation_mode = 31; // Order activation mode
+    int64 activation_time = 32;         // Order activation time
+    double activation_price = 33;       // Order activation price
+    TradeActivationFlags activation_flags = 34; // Order activation flags
+    string comment = 35;                // Comment to an order
+    double rate_margin = 36;            // Exchange rate of the margin currency of a deal to the client's deposit currency
+    TradeModifyFlags modification_flags = 37; // Order modification flags
+    repeated ApiDataModel api_data = 38; // Custom API data
+}
+
+// Position action
+enum PositionAction {
+    POSITION_ACTION_BUY = 0;            // A Buy position
+    POSITION_ACTION_SELL = 1;           // A Sell position
+}
+
+// Position activation type
+enum PositionActivation {
+    POSITION_ACTIVATION_NONE = 0;       // No activation
+    POSITION_ACTIVATION_SL = 1;         // Activation of the Stop Loss level
+    POSITION_ACTIVATION_TP = 2;         // Activation of the Take Profit level
+    POSITION_ACTIVATION_STOP_OUT = 3;   // Position cancellation upon Stop Out
+}
+
+// Position reason
+enum PositionReason {
+    POSITION_REASON_CLIENT = 0;         // The position is opened by a client manually through the client terminal
+    POSITION_REASON_EXPERT = 1;         // The position is opened by a client using an Expert Advisor
+    POSITION_REASON_DEALER = 2;         // The position is opened by a dealer through the manager terminal
+    POSITION_REASON_SL = 3;             // The position is opened as a result of Stop Loss activation
+    POSITION_REASON_TP = 4;             // The position is opened as a result of Take Profit activation
+    POSITION_REASON_SO = 5;             // The position is opened when the client reached the Stop-Out level
+    POSITION_REASON_ROLLOVER = 6;       // The position is opened when reopening a position for charging swaps
+    POSITION_REASON_EXTERNAL_CLIENT = 7; // The position is opened from an external trading system. As opposed to POSITION_REASON_EXTERNAL_SERVICE, commission is charged in this type of position.
+    POSITION_REASON_VMARGIN = 8;        // The position is opened to charge the variation margin
+    POSITION_REASON_GATEWAY = 9;        // The position is opened by a MetaTrader 5 gateway connected to the platform
+    POSITION_REASON_SIGNAL = 10;        // The position is opened as a result of copying a trading signal according to the subscription in the client terminal
+    POSITION_REASON_SETTLEMENT = 11;    // Forced closing of a position due to a futures/option delivery date coming into effect
+    POSITION_REASON_TRANSFER = 12;      // The position is opened as a result of relocating a position with a calculated price to a new symbol with the same underlying asset
+    POSITION_REASON_SYNC = 13;          // The position is opened while synchronizing a trading account with an external system
+    POSITION_REASON_EXTERNAL_SERVICE = 14; // Position opened from an external trading system for technical reasons (for example, to correct the trade state of a client). Commission is not charged on this type of positions.
+    POSITION_REASON_MIGRATION = 15;     // The position is created while importing clients' trading operations from the MetaTrader 4 server
+    POSITION_REASON_MOBILE = 16;        // The position is opened via the MetaTrader 5 mobile terminal for Android or iPhone
+    POSITION_REASON_WEB = 17;           // The position is opened via the web terminal
+    POSITION_REASON_SPLIT = 18;         // The position is opened as a result of a symbol split
+    POSITION_REASON_CORPORATE_ACTION = 19; // The position is created as a result of a corporate action, such as consolidating or renaming securities, transferring a client to a different account, etc.
+}
+
+// Position model
+message PositionModel {
+    uint64 position = 1;                // Ticket of a position
+    string external_id = 2;             // Position ID in external trading systems
+    uint64 login = 3;                   // Login of the client, to whom the position belongs
+    uint64 dealer = 4;                  // Login of a dealer, who has processed a position
+    string symbol = 5;                  // Symbol, for which a position is opened
+    PositionAction action = 6;          // Type of action performed with a position
+    PositionReason reason = 7;          // Reason for position opening
+    uint32 digits = 8;                  // Number of decimal places in the price of a position
+    uint32 digits_currency = 9;         // Number of decimal places the deposit currency of a client who has opened the position
+    double contract_size = 10;          // Contract size of the symbol, for which a position is opened
+    int64 time_create = 11;             // Time of a position opening
+    int64 time_update = 12;             // Time of a position change
+    int64 time_create_msc = 13;         // Time of a position opening in milliseconds
+    int64 time_update_msc = 14;         // Time of a position change in milliseconds
+    double price_open = 15;             // Price of a position opening
+    double price_current = 16;          // Current price of the symbol, for which a position is opened
+    double price_sl = 17;               // Stop Loss level of a position
+    double price_tp = 18;               // Take Profit level of a position
+    uint64 volume = 19;                 // Position volume
+    uint64 volume_ext = 20;             // Position volume with an extended accuracy
+    double profit = 21;                 // Value of the profit from the position
+    double storage = 22;                // Swap size for a position
+    double obsolete_value = 23;         // Obsolete value
+    double rate_profit = 24;            // Exchange rate of the profit currency of a position to the deposit currency of a client group
+    double rate_margin = 25;            // Exchange rate of the margin currency of a position to the client's deposit currency
+    uint64 expert_id = 26;              // ID of the Expert Advisor that has opened a position
+    uint64 expert_position_id = 27;     // Position ID in the Expert Advisor
+    string comment = 28;                // Comment to a position
+    PositionActivation activation_mode = 29; // Position activation mode
+    int64 activation_time = 30;         // Position activation time
+    double activation_price = 31;       // Position activation price
+    TradeActivationFlags activation_flags = 32; // Position activation flags
+    TradeModifyFlags modification_flags = 33; // Position modification flags
+    repeated ApiDataModel api_data = 34; // Custom API data
+}
+
+// ========== User, Account, Group Models ==========
+
+// User model
+message UserModel {
+    // Core Identity
+    uint64 login = 1;                   // Login of a user
+    string group = 2;                   // Group to which the user is included
+    uint64 cert_serial_number = 3;      // Number of the certificate that was used last by the client for authorization
+    uint32 rights = 4;                  // User permissions (EnUsersRights flags)
+    
+    // Registration & Access
+    int64 registration = 5;             // Client record creation date (SMT time format)
+    int64 last_access = 6;              // Date of the last connection using the account (SMT time format)
+    string last_ip = 7;                 // IP address from which the user last connected to the server
+    
+    // Personal Information
+    string name = 8;                    // Client's name (obsolete, use first_name instead)
+    string first_name = 9;              // Client's first name
+    string last_name = 10;              // Client's last name
+    string middle_name = 11;            // Client's middle name
+    string company = 12;                // Name of a client's company
+    string account = 13;                // Number of a client's account in an external trading system
+    
+    // Contact Information
+    string country = 14;                // Client's country of residence
+    uint32 language = 15;               // Language of a user
+    string city = 16;                   // Client's city of residence
+    string state = 17;                  // Client's state (region) of residence
+    string zip_code = 18;               // Client's zip code
+    string address = 19;                // Client's address
+    string phone = 20;                  // Client's phone number
+    string email = 21;                  // Client's email address
+    string id = 22;                     // Number of a client's identity document
+    
+    // Account Identifiers
+    string mqid = 23;                   // Client's MetaQuotes ID
+    uint64 client_id = 24;              // Client ID with which the trading account is associated
+    string status = 25;                 // Client's status
+    string comment = 26;                // Comment to a client
+    uint32 color = 27;                  // Client's color (for visual identification)
+    
+    // Security
+    string phone_password = 28;         // Client's phone password
+    int64 last_pass_change = 29;        // Date of the last change of the user's password (SMT time format)
+    string password_hash = 30;          // Password hash of a client record (used only in MetaTrader 5 Server API)
+    string otp_secret = 31;             // Secret key which links a trading account and a one-time password generator
+    
+    // Trading Settings
+    uint32 leverage = 32;               // Size of a client's leverage
+    uint64 agent = 33;                  // Number of a client's agent account
+    uint32 limit_orders = 34;           // Maximum number of active (placed) pending orders allowed on the account
+    uint64 limit_positions_value = 35;  // Maximum value of open positions allowed on the account
+    
+    // Marketing
+    string lead_source = 36;            // Lead source : a website a client has come from
+    string lead_campaign = 37;          // Lead campaign : name of a marketing campaign a client was attracted by
+    
+    // Financial Information (Read-only)
+    double balance = 38;                // Current balance of a client
+    double balance_prev_day = 39;       // Value of a client's balance as of the end of the previous day
+    double balance_prev_month = 40;     // Value of a client's balance as of the end of the previous trading month
+    double equity_prev_day = 41;        // Value of a client's equity as of the end of the previous day
+    double equity_prev_month = 42;      // Value of a client's equity as of the end of the previous trading month
+    double credit = 43;                 // Current amount of funds credited to a client
+    
+    // Commission & Interest (Read-only)
+    double interest_rate = 44;          // Amount accrued for the current month calculated based on the annual interest rate
+    double commission_daily = 45;       // Amount of commissions from a client for a day
+    double commission_monthly = 46;     // Total amount of commissions charged from a client for the current month
+    double commission_agent_daily = 47; // Size of agent commissions charged from a client's trade operations for a day
+    double commission_agent_monthly = 48; // Amount of agent commission charged for a client's trade operations for the current month
+}
+
+// Account model
+message AccountModel {
+    // Core Identity
+    uint64 login = 1;                   // Login of the client, to whom the trading account belongs
+    uint32 currency_digits = 2;         // Number of decimal places in the account deposit currency
+    
+    // Balance & Credit
+    double balance = 3;                 // Balance of a trading account
+    double credit = 4;                  // Current amount of credit given to an account
+    
+    // Margin
+    double margin = 5;                  // Current value of the account margin
+    double margin_free = 6;             // Free margin of an account
+    double margin_level = 7;            // Margin level as a percentage
+    double margin_leverage = 8;         // Margin leverage
+    double margin_initial = 9;          // Current size of the initial margin of positions on a trading account
+    double margin_maintenance = 10;     // Current size of the maintenance margin of positions on a trading account
+    
+    // Profit & Loss
+    double profit = 11;                 // Size of the current profit for all open positions
+    double storage = 12;                // Current size of swaps charged for open positions on the account
+    double commission = 13;             // Size of commissions charged for all transactions on the account (deprecated, no longer used)
+    double floating = 14;               // Size of floating profit/loss of open positions on the account
+    double equity = 15;                 // Account equity
+    
+    // Stop Out Information
+    uint32 so_activation = 16;          // Account status as per the minimum amount of funds required to maintain trading positions
+    int64 so_time = 17;                 // Time when the Margin Call or Stop Out level was reached (SMT time format)
+    double so_level = 18;               // Margin level of an account at the time of reaching the Stop Out level
+    double so_equity = 19;              // Account equity at the time of reaching the Stop Out level
+    double so_margin = 20;              // Margin amount on an account at the time of reaching the Stop Out level
+    
+    // Blocked Amounts
+    double blocked_commission = 21;     // Amount of the standard commission locked on the account (accumulated during the day/month)
+    double blocked_profit = 22;         // Amount of intraday profit locked on the account
+    
+    // Assets & Liabilities
+    double assets = 23;                 // Current total amount of assets on a trading account
+    double liabilities = 24;            // Current total amount of liabilities on a trading account
+}
+
+// Group model
+message GroupModel {
+    // Core Identity
+    string group = 1;                   // Name of a group, including a path to it in accordance with the hierarchy
+    uint64 server = 2;                  // ID of the trade server, to which the group is linked
+    
+    // Permissions
+    uint64 permissions_flags = 3;       // Permission flags for the group (EnPermissionsFlags)
+    uint32 auth_mode = 4;               // Authorization mode for accounts in the group (EnAuthMode)
+    uint32 auth_otp_mode = 5;           // Authentication mode using one-time passwords (EnAuthOTPMode)
+    uint32 auth_password_min = 6;       // Minimum password length for accounts in the group
+    
+    // Company Information
+    string company = 7;                 // Name of the company that services the group
+    string company_page = 8;            // Website address of the company that services the group
+    string company_email = 9;           // Email address of the company that services the group
+    string company_support_page = 10;   // Website address of the technical support of the company
+    string company_support_email = 11;  // Technical support email address of the company
+    string company_catalog = 12;        // Name of the subdirectory that stores templates of reports, emails, etc.
+    string company_deposit_page = 13;   // Deposit page URL for a group of accounts
+    string company_withdrawal_page = 14; // Withdrawal page URL for a group of accounts
+    
+    // Currency
+    string currency = 15;               // Deposit currency of the group
+    uint32 currency_digits = 16;        // Number of digits after the decimal point in the group deposit currency
+    
+    // Reports
+    uint32 reports_mode = 17;           // Mode of report generation (EnReportsMode)
+    uint32 reports_flags = 18;          // Options for sending reports (EnReportsFlags)
+    string reports_email = 19;          // Mail server which is used for sending reports to clients in the group
+    string reports_smtp = 20;           // Address of the SMTP server for sending reports (obsolete)
+    string reports_smtp_login = 21;     // Login for the authorization on the SMTP server (obsolete)
+    string reports_smtp_pass = 22;      // Password for the authorization on the SMTP server (obsolete)
+    
+    // News
+    uint32 news_mode = 23;              // Mode of news sending to the clients from the group (EnNewsMode)
+    string news_category = 24;          // Categories of news received by the group
+    
+    // Mail
+    uint32 mail_mode = 25;              // Mode of operation of the internal mail system for the group (EnMailMode)
+    
+    // Trading
+    uint32 trade_flags = 26;            // Trade options of a group (EnTradeFlags)
+    uint32 trade_transfer_mode = 27;    // Mode of money transfer between accounts (EnTransferMode)
+    double trade_interestrate = 28;     // Annual interest rate on deposits of the group accounts
+    double trade_virtual_credit = 29;   // Amount of additional funds that a brokerage company can provide to a client
+    
+    // Margin
+    uint32 margin_free_mode = 30;       // Mode of including floating profit/loss into free margin calculation (EnFreeMarginMode)
+    uint32 margin_so_mode = 31;         // Mode of checking the levels of Stop Out and Margin Call (EnStopOutMode)
+    double margin_call = 32;            // Margin Call level
+    double margin_stop_out = 33;        // Stop Out level
+    uint32 margin_free_profit_mode = 34; // Mode of use of the profit/loss recorded during a trading day in free margin calculation
+    uint32 margin_mode = 35;            // Risk management mode applied for the group
+    uint32 margin_flags = 36;           // Margin calculation flags
+    string margin_floating_leverage = 37; // Floating margin profile applied to the group
+    
+    // Demo Account Settings
+    uint32 demo_leverage = 38;          // Default credit leverage for demo accounts opened in the group
+    double demo_deposit = 39;           // Default amount of deposit for demo accounts opened in the group
+    uint32 demo_inactivity_period = 40; // Demo account inactivity period (in days)
+    
+    // Limits
+    uint32 limit_history = 41;          // Maximum number of days for which the group can request data on conducted trade operations
+    uint32 limit_orders = 42;           // Maximum number of orders that can be simultaneously placed by an account from this group
+    uint32 limit_symbols = 43;          // Maximum number of symbols for which an account can simultaneously receive quotes
+    uint32 limit_positions = 44;        // Maximum number of open positions that can be present simultaneously on a client account
+}

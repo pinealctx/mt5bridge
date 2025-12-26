@@ -1,41 +1,42 @@
 #!/bin/bash
-# MT5Bridge.Core 测试运行脚本 (Linux/macOS)
+# MT5Bridge Test Runner Script (Linux/macOS)
 
 set -e
 
-# 默认参数
+# Default parameters
 MODE="all"
 VERBOSITY="minimal"
 NO_BUILD=false
 COVERAGE=false
 FILTER=""
 
-# 显示帮助信息
+# Display help information
 show_help() {
     cat << EOF
-MT5Bridge.Core 测试运行脚本
+MT5Bridge Test Runner Script
 
-用法: ./run-tests.sh [选项]
+Usage: ./run-tests.sh [options]
 
-选项:
-    -m, --mode <mode>        测试模式 (all|atomic|timing|text|collections|logging|filter)
-    -f, --filter <filter>    自定义测试过滤器 (当 mode=filter 时使用)
-    -v, --verbosity <level>  输出详细程度 (quiet|minimal|normal|detailed)
-    -n, --no-build          跳过构建，直接运行测试
-    -c, --coverage          生成代码覆盖率报告
-    -h, --help              显示此帮助信息
+Options:
+    -m, --mode <mode>        Test mode (all|core|manager|benchmarks|atomic|timing|text|collections|logging|filter)
+    -f, --filter <filter>    Custom test filter (used when mode=filter)
+    -v, --verbosity <level>  Output verbosity (quiet|minimal|normal|detailed)
+    -n, --no-build          Skip build, run tests directly
+    -c, --coverage          Generate code coverage report
+    -h, --help              Display this help information
 
-示例:
+Examples:
     ./run-tests.sh
+    ./run-tests.sh -m core
+    ./run-tests.sh -m manager
+    ./run-tests.sh -m benchmarks
     ./run-tests.sh -m atomic
-    ./run-tests.sh -m filter -f "FullyQualifiedName~BackoffTimer"
-    ./run-tests.sh -v detailed
     ./run-tests.sh -c
 
 EOF
 }
 
-# 解析命令行参数
+# Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         -m|--mode)
@@ -63,24 +64,34 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         *)
-            echo "未知参数: $1"
+            echo "Unknown parameter: $1"
             show_help
             exit 1
             ;;
     esac
 done
 
-# 获取脚本所在目录
+# Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-TEST_PROJECT="$SCRIPT_DIR/MT5Bridge.Core.Tests/MT5Bridge.Core.Tests.csproj"
 
-# 检查测试项目是否存在
-if [ ! -f "$TEST_PROJECT" ]; then
-    echo "错误: 测试项目不存在: $TEST_PROJECT"
-    exit 1
+# Define project paths
+CORE_PROJECT="$SCRIPT_DIR/MT5Bridge.Core.Tests/MT5Bridge.Core.Tests.csproj"
+MANAGER_PROJECT="$SCRIPT_DIR/MT5Bridge.Manager.Tests/MT5Bridge.Manager.Tests.csproj"
+BENCHMARK_PROJECT="$SCRIPT_DIR/MT5Bridge.Benchmarks/MT5Bridge.Benchmarks.csproj"
+
+# Determine which projects to run
+TARGET_PROJECTS=()
+if [ "$MODE" = "all" ]; then
+    TARGET_PROJECTS=("core" "manager")
+elif [ "$MODE" = "core" ] || [ "$MODE" = "atomic" ] || [ "$MODE" = "timing" ] || [ "$MODE" = "text" ] || [ "$MODE" = "collections" ] || [ "$MODE" = "logging" ] || [ "$MODE" = "filter" ]; then
+    TARGET_PROJECTS=("core")
+elif [ "$MODE" = "manager" ]; then
+    TARGET_PROJECTS=("manager")
+elif [ "$MODE" = "benchmarks" ]; then
+    TARGET_PROJECTS=("benchmarks")
 fi
 
-# 构建测试过滤器
+# Build test filter for Core project
 case $MODE in
     atomic)
         TEST_FILTER="FullyQualifiedName~MT5Bridge.Core.Tests.Atomic"
@@ -100,35 +111,17 @@ case $MODE in
     filter)
         TEST_FILTER="$FILTER"
         ;;
-    all|*)
+    *)
         TEST_FILTER=""
         ;;
 esac
 
-# 构建测试命令
-TEST_CMD="dotnet test \"$TEST_PROJECT\" --logger \"console;verbosity=$VERBOSITY\""
-
-# 添加 NoBuild 参数
-if [ "$NO_BUILD" = true ]; then
-    TEST_CMD="$TEST_CMD --no-build"
-fi
-
-# 添加过滤器
-if [ -n "$TEST_FILTER" ]; then
-    TEST_CMD="$TEST_CMD --filter \"$TEST_FILTER\""
-fi
-
-# 添加覆盖率参数
-if [ "$COVERAGE" = true ]; then
-    RESULTS_DIR="$SCRIPT_DIR/TestResults"
-    TEST_CMD="$TEST_CMD --collect:\"XPlat Code Coverage\" --results-directory \"$RESULTS_DIR\""
-fi
-
-# 显示运行信息
+# Display run information
 echo "================================================"
-echo " MT5Bridge.Core 测试运行"
+echo " MT5Bridge Test Runner"
 echo "================================================"
-echo "模式:     $MODE"
+echo "Mode:      $MODE"
+echo "Projects:  ${TARGET_PROJECTS[*]}"
 if [ -n "$TEST_FILTER" ]; then
     echo "过滤器:   $TEST_FILTER"
 fi
@@ -139,34 +132,59 @@ fi
 echo "================================================"
 echo ""
 
-# 记录开始时间
+# Record start time
 START_TIME=$(date +%s)
 
-# 运行测试
-eval $TEST_CMD
-EXIT_CODE=$?
+for PROJ in "${TARGET_PROJECTS[@]}"; do
+    case $PROJ in
+        core)
+            PROJ_PATH="$CORE_PROJECT"
+            ;;
+        manager)
+            PROJ_PATH="$MANAGER_PROJECT"
+            ;;
+        benchmarks)
+            PROJ_PATH="$BENCHMARK_PROJECT"
+            ;;
+    esac
 
-# 计算执行时间
+    if [ ! -f "$PROJ_PATH" ]; then
+        echo "Warning: Project not found: $PROJ_PATH"
+        continue
+    fi
+
+    echo ">>> Running $PROJ ..."
+
+    if [ "$PROJ" = "benchmarks" ]; then
+        dotnet run -c Release --project "$PROJ_PATH"
+    else
+        TEST_CMD="dotnet test \"$PROJ_PATH\" --logger \"console;verbosity=$VERBOSITY\""
+        
+        if [ "$NO_BUILD" = true ]; then
+            TEST_CMD="$TEST_CMD --no-build"
+        fi
+
+        if [ "$PROJ" = "core" ] && [ -n "$TEST_FILTER" ]; then
+            TEST_CMD="$TEST_CMD --filter \"$TEST_FILTER\""
+        fi
+
+        if [ "$COVERAGE" = true ]; then
+            RESULTS_DIR="$SCRIPT_DIR/TestResults"
+            TEST_CMD="$TEST_CMD --collect:\"XPlat Code Coverage\" --results-directory \"$RESULTS_DIR\""
+        fi
+
+        eval $TEST_CMD
+    fi
+done
+
+# Calculate execution time
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 
-# 显示执行时间
+# Display execution time
 echo ""
 echo "================================================"
-if [ $EXIT_CODE -eq 0 ]; then
-    echo -e "\033[32m测试执行时间: ${DURATION} 秒\033[0m"
-else
-    echo -e "\033[31m测试执行时间: ${DURATION} 秒\033[0m"
-fi
+echo -e "\033[32mTotal execution time: ${DURATION} seconds\033[0m"
 echo "================================================"
 
-# 如果启用了覆盖率，显示结果位置
-if [ "$COVERAGE" = true ] && [ $EXIT_CODE -eq 0 ]; then
-    echo ""
-    echo "覆盖率报告已生成到: $RESULTS_DIR"
-    echo "提示: 使用 ReportGenerator 工具可以生成 HTML 报告:"
-    echo "  dotnet tool install -g dotnet-reportgenerator-globaltool"
-    echo "  reportgenerator -reports:\"$RESULTS_DIR/**/coverage.cobertura.xml\" -targetdir:\"$RESULTS_DIR/html\" -reporttypes:Html"
-fi
-
-exit $EXIT_CODE
+exit 0

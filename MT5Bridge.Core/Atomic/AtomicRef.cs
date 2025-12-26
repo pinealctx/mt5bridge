@@ -14,6 +14,11 @@ public class AtomicRef<T> where T : class
         return Volatile.Read(ref _value);
     }
 
+    public T? CompareExchange(T? value, T? comparand)
+    {
+        return Interlocked.CompareExchange(ref _value, value, comparand);
+    }
+
     public void Store(T? value)
     {
         Interlocked.Exchange(ref _value, value);

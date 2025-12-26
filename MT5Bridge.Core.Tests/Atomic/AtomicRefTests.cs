@@ -69,6 +69,33 @@ public class AtomicRefTests
     }
 
     [Fact]
+    public void CompareExchange_ShouldUpdateWhenMatch()
+    {
+        var obj1 = new TestObject { Value = 1 };
+        var obj2 = new TestObject { Value = 2 };
+        var atomic = new AtomicRef<TestObject>(obj1);
+
+        var original = atomic.CompareExchange(obj2, obj1);
+
+        Assert.Same(obj1, original);
+        Assert.Same(obj2, atomic.Load());
+    }
+
+    [Fact]
+    public void CompareExchange_ShouldNotUpdateWhenNoMatch()
+    {
+        var obj1 = new TestObject { Value = 1 };
+        var obj2 = new TestObject { Value = 2 };
+        var obj3 = new TestObject { Value = 3 };
+        var atomic = new AtomicRef<TestObject>(obj1);
+
+        var original = atomic.CompareExchange(obj2, obj3);
+
+        Assert.Same(obj1, original);
+        Assert.Same(obj1, atomic.Load());
+    }
+
+    [Fact]
     public async Task ThreadSafety_ConcurrentReferenceSwaps()
     {
         var objects = Enumerable.Range(0, 10)

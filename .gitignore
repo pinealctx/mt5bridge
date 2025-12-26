@@ -59,3 +59,4 @@ nunit-*.xml
 .task
 .vs
 .history
+.ref

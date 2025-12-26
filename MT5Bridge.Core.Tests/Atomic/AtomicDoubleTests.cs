@@ -55,6 +55,26 @@ public class AtomicDoubleTests
     }
 
     [Fact]
+    public void CompareExchange_ShouldUpdateWhenMatch()
+    {
+        var atomic = new AtomicDouble(10.5);
+        var original = atomic.CompareExchange(20.5, 10.5);
+
+        Assert.Equal(10.5, original);
+        Assert.Equal(20.5, atomic.Load());
+    }
+
+    [Fact]
+    public void CompareExchange_ShouldNotUpdateWhenNoMatch()
+    {
+        var atomic = new AtomicDouble(10.5);
+        var original = atomic.CompareExchange(20.5, 5.5);
+
+        Assert.Equal(10.5, original);
+        Assert.Equal(10.5, atomic.Load());
+    }
+
+    [Fact]
     public async Task ThreadSafety_ConcurrentAccess()
     {
         var atomic = new AtomicDouble(0.0);

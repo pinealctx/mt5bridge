@@ -39,6 +39,56 @@ public class AtomicIntTests
     }
 
     [Fact]
+    public void Increment_ShouldIncreaseValue()
+    {
+        var atomic = new AtomicInt(10);
+        var result = atomic.Increment();
+
+        Assert.Equal(11, result);
+        Assert.Equal(11, atomic.Load());
+    }
+
+    [Fact]
+    public void Decrement_ShouldDecreaseValue()
+    {
+        var atomic = new AtomicInt(10);
+        var result = atomic.Decrement();
+
+        Assert.Equal(9, result);
+        Assert.Equal(9, atomic.Load());
+    }
+
+    [Fact]
+    public void Add_ShouldAddValue()
+    {
+        var atomic = new AtomicInt(10);
+        var result = atomic.Add(5);
+
+        Assert.Equal(15, result);
+        Assert.Equal(15, atomic.Load());
+    }
+
+    [Fact]
+    public void CompareExchange_ShouldUpdateWhenMatch()
+    {
+        var atomic = new AtomicInt(10);
+        var original = atomic.CompareExchange(20, 10);
+
+        Assert.Equal(10, original);
+        Assert.Equal(20, atomic.Load());
+    }
+
+    [Fact]
+    public void CompareExchange_ShouldNotUpdateWhenNoMatch()
+    {
+        var atomic = new AtomicInt(10);
+        var original = atomic.CompareExchange(20, 5);
+
+        Assert.Equal(10, original);
+        Assert.Equal(10, atomic.Load());
+    }
+
+    [Fact]
     public async Task ThreadSafety_ConcurrentStoresAndLoads()
     {
         var atomic = new AtomicInt(0);

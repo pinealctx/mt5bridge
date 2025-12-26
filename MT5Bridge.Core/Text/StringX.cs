@@ -2,9 +2,10 @@ using System.Text.RegularExpressions;
 
 namespace MT5Bridge.Core.Text;
 
-public static class StringX
+public static partial class StringX
 {
-    private static readonly Regex RegexByParentheses = new(@"^\((.*?)\):\((.*?)\)$");
+    [GeneratedRegex(@"^\((.*?)\):\((.*?)\)$")]
+    private static partial Regex RegexByParentheses();
 
     /// <summary>
     /// Splits input string in the format "(string1):(string2)" and returns a tuple (string1, string2, true).
@@ -16,7 +17,7 @@ public static class StringX
         {
             return (string.Empty, string.Empty, false);
         }
-        var match = RegexByParentheses.Match(strContent);
+        var match = RegexByParentheses().Match(strContent);
         if (match.Success && match.Groups.Count == 3)
         {
             string str1 = match.Groups[1].Value;

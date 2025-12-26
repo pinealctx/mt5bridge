@@ -1,0 +1,40 @@
+# EditorConfig for MT5Bridge - Enable strict code analysis rules
+
+root = true
+
+[*.cs]
+# Roslyn Analyzers - IDisposable pattern
+csharp_style_var_for_built_in_types = false
+csharp_style_pattern_matching_over_as_with_null_check = true
+csharp_style_pattern_matching_over_is_with_cast_check = true
+
+# CA1001: Types that own disposable fields should be disposable
+dotnet_diagnostic.CA1001.severity = warning
+
+# CA1816: Call GC.SuppressFinalize correctly
+dotnet_diagnostic.CA1816.severity = warning
+
+# CA1063: Implement IDisposable correctly
+dotnet_diagnostic.CA1063.severity = warning
+
+# CA1001: Types that own disposable fields should be disposable
+dotnet_diagnostic.CA1816.severity = warning
+
+# CA2213: Disposable fields should be disposed
+dotnet_diagnostic.CA2213.severity = warning
+
+# CA2215: Dispose methods should call base class dispose
+dotnet_diagnostic.CA2215.severity = warning
+
+# CA1806: Do not ignore method results
+dotnet_diagnostic.CA1806.severity = warning
+
+# Roslynator rules
+# RCS1110: Declare type inside namespace
+dotnet_diagnostic.RCS1110.severity = warning
+
+# RCS1018: Add access modifier
+dotnet_diagnostic.RCS1018.severity = warning
+
+# CA2000: Dispose objects before losing scope
+dotnet_diagnostic.CA2000.severity = warning

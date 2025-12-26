@@ -38,4 +38,20 @@ public static class DictUtil
     {
         return new Dictionary<string, string>(concurrentDict);
     }
+
+    /// <summary>
+    /// Converts an object (usually anonymous) to a dictionary of its properties.
+    /// </summary>
+    public static IDictionary<string, object> ToDictionary(object? obj)
+    {
+        if (obj == null) return new Dictionary<string, object>();
+        if (obj is IDictionary<string, object> dict) return dict;
+
+        var result = new Dictionary<string, object>();
+        foreach (var prop in obj.GetType().GetProperties())
+        {
+            result[prop.Name] = prop.GetValue(obj) ?? "null";
+        }
+        return result;
+    }
 }

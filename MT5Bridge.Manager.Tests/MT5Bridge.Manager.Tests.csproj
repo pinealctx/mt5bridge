@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Enable Roslyn Analyzers -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageReference Include="Serilog.Sinks.XUnit" Version="3.0.19" />
+    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Xunit.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MT5Bridge.Manager\MT5Bridge.Manager.csproj" />
+  </ItemGroup>
+
+  <!-- MT5 SDK References (same as MT5Bridge.Manager) -->
+  <ItemGroup>
+    <Reference Include="MetaQuotes.MT5CommonAPI64">
+      <HintPath>..\libs\MetaQuotes.MT5CommonAPI64.dll</HintPath>
+    </Reference>
+    <Reference Include="MetaQuotes.MT5ManagerAPI64">
+      <HintPath>..\libs\MetaQuotes.MT5ManagerAPI64.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

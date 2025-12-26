@@ -48,6 +48,46 @@ public class AtomicLongTests
     }
 
     [Fact]
+    public void Decrement_ShouldDecreaseValue()
+    {
+        var atomic = new AtomicLong(10);
+        var result = atomic.Decrement();
+
+        Assert.Equal(9, result);
+        Assert.Equal(9, atomic.Load());
+    }
+
+    [Fact]
+    public void Add_ShouldAddValue()
+    {
+        var atomic = new AtomicLong(10);
+        var result = atomic.Add(5);
+
+        Assert.Equal(15, result);
+        Assert.Equal(15, atomic.Load());
+    }
+
+    [Fact]
+    public void CompareExchange_ShouldUpdateWhenMatch()
+    {
+        var atomic = new AtomicLong(10);
+        var original = atomic.CompareExchange(20, 10);
+
+        Assert.Equal(10, original);
+        Assert.Equal(20, atomic.Load());
+    }
+
+    [Fact]
+    public void CompareExchange_ShouldNotUpdateWhenNoMatch()
+    {
+        var atomic = new AtomicLong(10);
+        var original = atomic.CompareExchange(20, 5);
+
+        Assert.Equal(10, original);
+        Assert.Equal(10, atomic.Load());
+    }
+
+    [Fact]
     public async Task ThreadSafety_ConcurrentIncrements()
     {
         var atomic = new AtomicLong(0);
