@@ -4,6 +4,9 @@ namespace MT5Bridge.Manager.Demo.Options;
 
 public class CommonOptions
 {
+    [Option('c', "config", Default = "appsettings.json", HelpText = "Path to configuration file")]
+    public string ConfigFile { get; set; } = "appsettings.json";
+
     [Option('s', "server", HelpText = "MT5 server address (e.g., localhost:443)")]
     public string? Server { get; set; }
 

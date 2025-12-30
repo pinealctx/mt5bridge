@@ -1,7 +1,11 @@
 using MT5Bridge.Manager.Models;
+using MetaQuotes.MT5CommonAPI;
 using ProtoUser = MT5Bridge.Manager.Models.Proto.UserModel;
 using ProtoAccount = MT5Bridge.Manager.Models.Proto.AccountModel;
 using ProtoGroup = MT5Bridge.Manager.Models.Proto.GroupModel;
+using ProtoDeal = MT5Bridge.Manager.Models.Proto.DealModel;
+using ProtoOrder = MT5Bridge.Manager.Models.Proto.OrderModel;
+using ProtoPosition = MT5Bridge.Manager.Models.Proto.PositionModel;
 
 namespace MT5Bridge.Manager.Managers;
 
@@ -38,15 +42,21 @@ public interface IMT5Manager : IDisposable
     void RegisterDealHandler(
         Action<DealModel>? onAdd = null,
         Action<DealModel>? onUpdate = null,
-        Action<DealModel>? onDelete = null);
+        Action<DealModel>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null,
+        Action<DealModel, AccountModel, PositionModel>? onPerform = null);
 
     /// <summary>
     /// Register a deal event handler (Protobuf)
     /// </summary>
     void RegisterDealProtoHandler(
-        Action<MT5Bridge.Manager.Models.Proto.DealModel>? onAdd = null,
-        Action<MT5Bridge.Manager.Models.Proto.DealModel>? onUpdate = null,
-        Action<MT5Bridge.Manager.Models.Proto.DealModel>? onDelete = null);
+        Action<ProtoDeal>? onAdd = null,
+        Action<ProtoDeal>? onUpdate = null,
+        Action<ProtoDeal>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null,
+        Action<ProtoDeal, ProtoAccount, ProtoPosition>? onPerform = null);
 
     /// <summary>
     /// Register an order event handler (POCO)
@@ -54,15 +64,19 @@ public interface IMT5Manager : IDisposable
     void RegisterOrderHandler(
         Action<OrderModel>? onAdd = null,
         Action<OrderModel>? onUpdate = null,
-        Action<OrderModel>? onDelete = null);
+        Action<OrderModel>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null);
 
     /// <summary>
     /// Register an order event handler (Protobuf)
     /// </summary>
     void RegisterOrderProtoHandler(
-        Action<MT5Bridge.Manager.Models.Proto.OrderModel>? onAdd = null,
-        Action<MT5Bridge.Manager.Models.Proto.OrderModel>? onUpdate = null,
-        Action<MT5Bridge.Manager.Models.Proto.OrderModel>? onDelete = null);
+        Action<ProtoOrder>? onAdd = null,
+        Action<ProtoOrder>? onUpdate = null,
+        Action<ProtoOrder>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null);
 
     /// <summary>
     /// Register a position event handler (POCO)
@@ -70,15 +84,35 @@ public interface IMT5Manager : IDisposable
     void RegisterPositionHandler(
         Action<PositionModel>? onAdd = null,
         Action<PositionModel>? onUpdate = null,
-        Action<PositionModel>? onDelete = null);
+        Action<PositionModel>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null);
 
     /// <summary>
     /// Register a position event handler (Protobuf)
     /// </summary>
     void RegisterPositionProtoHandler(
-        Action<MT5Bridge.Manager.Models.Proto.PositionModel>? onAdd = null,
-        Action<MT5Bridge.Manager.Models.Proto.PositionModel>? onUpdate = null,
-        Action<MT5Bridge.Manager.Models.Proto.PositionModel>? onDelete = null);
+        Action<ProtoPosition>? onAdd = null,
+        Action<ProtoPosition>? onUpdate = null,
+        Action<ProtoPosition>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null);
+
+    /// <summary>
+    /// Register a manager event handler (POCO)
+    /// </summary>
+    void RegisterManagerHandler(
+        Action? onConnect = null,
+        Action? onDisconnect = null,
+        Action<MTRetCode, long, UserModel, AccountModel, List<OrderModel>, List<PositionModel>>? onTradeAccountSet = null);
+
+    /// <summary>
+    /// Register a manager event handler (Protobuf)
+    /// </summary>
+    void RegisterManagerProtoHandler(
+        Action? onConnect = null,
+        Action? onDisconnect = null,
+        Action<MTRetCode, long, ProtoUser, ProtoAccount, List<ProtoOrder>, List<ProtoPosition>>? onTradeAccountSet = null);
 
     #endregion
 

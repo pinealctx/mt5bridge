@@ -1,10 +1,16 @@
 using MetaQuotes.MT5CommonAPI;
 using Microsoft.Extensions.Configuration;
 using Serilog;
+using MT5Bridge.Manager;
+using MT5Bridge.Manager.Managers;
 using MT5Bridge.Manager.Models;
 using MT5Bridge.Manager.Models.Proto;
 using Google.Protobuf;
 using ProtoDeal = MT5Bridge.Manager.Models.Proto.DealModel;
+using ProtoOrder = MT5Bridge.Manager.Models.Proto.OrderModel;
+using ProtoPosition = MT5Bridge.Manager.Models.Proto.PositionModel;
+using ProtoAccount = MT5Bridge.Manager.Models.Proto.AccountModel;
+using ProtoUser = MT5Bridge.Manager.Models.Proto.UserModel;
 
 namespace MT5Bridge.Manager.Demo.Commands;
 
@@ -32,7 +38,6 @@ public class ListenCommand : BaseCommand
         {
             "poco" => await PocoAsync(server, login, password, types),
             "protobuf" => await ProtobufAsync(server, login, password, types),
-            "mixed" => await MixedAsync(server, login, password, types),
             _ => await PocoAsync(server, login, password, types)
         };
     }
@@ -40,7 +45,6 @@ public class ListenCommand : BaseCommand
     public async Task<int> PocoAsync(string? server, ulong? login, string? password, string? types)
     {
         var settings = CreateConnectionSettings(server, login, password);
-        using var manager = await ConnectAsync(settings);
 
         Logger.Information("=== Listening to Trade Events (POCO Models) ===");
         Logger.Information($"Subscribed to: {types ?? EventTypes.Deal}");
@@ -50,33 +54,40 @@ public class ListenCommand : BaseCommand
         var typeList = (types ?? EventTypes.Deal).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         bool all = typeList.Contains(EventTypes.All, StringComparer.OrdinalIgnoreCase);
 
-        // Register POCO model handlers
+        // Create manager first (subscribe BEFORE connecting)
+        var manager = new MT5Manager(Logger);
+
+        // Register POCO model handlers BEFORE connecting
         if (all || typeList.Contains(EventTypes.Deal, StringComparer.OrdinalIgnoreCase))
         {
             manager.RegisterDealHandler(
                 onAdd: dealModel =>
                 {
-                    var elapsed = (DateTime.Now - startTime).TotalMilliseconds;
-
-                    Logger.Information($"[DEAL ADD] #{dealModel.Deal}: {dealModel.Symbol}, " +
-                               $"Action: {dealModel.Action}, Price: {dealModel.Price:F5}, " +
-                               $"Volume: {dealModel.VolumeExt / 10000.0:F2}, Profit: {dealModel.Profit:F2}, " +
-                               $"Login: {dealModel.Login}, Time: {DateTimeOffset.FromUnixTimeSeconds(dealModel.Time):yyyy-MM-dd HH:mm:ss} " +
-                               $"(Elapsed: {elapsed:F0}ms)");
-
-                    // Show readable JSON for first 3 deals
-                    if (dealModel.Deal % 100 == 0)
-                    {
-                        Logger.Debug($"Deal JSON:\n{dealModel.ToString()}");
-                    }
+                    LogDeal(Logger, "DEAL ADD", dealModel);
                 },
                 onUpdate: dealModel =>
                 {
-                    Logger.Information($"[DEAL UPDATE] #{dealModel.Deal}: {dealModel.Symbol}, State changed");
+                    LogDeal(Logger, "DEAL UPDATE", dealModel);
                 },
                 onDelete: dealModel =>
                 {
-                    Logger.Information($"[DEAL DELETE] #{dealModel.Deal}: {dealModel.Symbol}");
+                    LogDeal(Logger, "DEAL DELETE", dealModel);
+                },
+                onClean: login =>
+                {
+                    Logger.Information("DEAL CLEAN: login={Login}", login);
+                },
+                onSync: () =>
+                {
+                    Logger.Information("DEAL SYNC completed");
+                },
+                onPerform: (deal, account, position) =>
+                {
+                    Logger.Information("=== DEAL PERFORM START ===");
+                    LogDeal(Logger, "DEAL (in PERFORM)", deal);
+                    LogAccount(Logger, "ACCOUNT (in PERFORM)", account);
+                    LogPosition(Logger, "POSITION (in PERFORM)", position);
+                    Logger.Information("=== DEAL PERFORM END ===");
                 }
             );
         }
@@ -86,36 +97,23 @@ public class ListenCommand : BaseCommand
             manager.RegisterOrderHandler(
                 onAdd: orderModel =>
                 {
-                    var elapsed = (DateTime.Now - startTime).TotalMilliseconds;
-
-                    var volumeInitial = orderModel.VolumeInitialExt > 0
-                        ? orderModel.VolumeInitialExt / 10000.0
-                        : orderModel.VolumeInitial / 100.0;
-                    var volumeCurrent = orderModel.VolumeCurrentExt > 0
-                        ? orderModel.VolumeCurrentExt / 10000.0
-                        : orderModel.VolumeCurrent / 100.0;
-
-                    Logger.Information($"[ORDER ADD] #{orderModel.Order}: {orderModel.Symbol}, " +
-                               $"Type: {orderModel.Type}, State: {orderModel.State}, " +
-                               $"Price: {orderModel.PriceOrder:F5}, SL: {orderModel.PriceSL:F5}, TP: {orderModel.PriceTP:F5}, " +
-                               $"Volume: {volumeInitial:F2}/{volumeCurrent:F2}, " +
-                               $"Login: {orderModel.Login}, Reason: {orderModel.Reason}, " +
-                               $"Time: {DateTimeOffset.FromUnixTimeSeconds(orderModel.TimeSetup):yyyy-MM-dd HH:mm:ss} " +
-                               $"(Elapsed: {elapsed:F0}ms)");
+                    LogOrder(Logger, "ORDER ADD", orderModel);
                 },
                 onUpdate: orderModel =>
                 {
-                    var volumeCurrent = orderModel.VolumeCurrentExt > 0
-                        ? orderModel.VolumeCurrentExt / 10000.0
-                        : orderModel.VolumeCurrent / 100.0;
-
-                    Logger.Information($"[ORDER UPDATE] #{orderModel.Order}: {orderModel.Symbol}, " +
-                               $"State: {orderModel.State}, Volume: {volumeCurrent:F2}, Price: {orderModel.PriceCurrent:F5}");
+                    LogOrder(Logger, "ORDER UPDATE", orderModel);
                 },
                 onDelete: orderModel =>
                 {
-                    Logger.Information($"[ORDER DELETE] #{orderModel.Order}: {orderModel.Symbol}, " +
-                               $"Final State: {orderModel.State}");
+                    LogOrder(Logger, "ORDER DELETE", orderModel);
+                },
+                onClean: login =>
+                {
+                    Logger.Information("ORDER CLEAN: login={Login}", login);
+                },
+                onSync: () =>
+                {
+                    Logger.Information("ORDER SYNC completed");
                 }
             );
         }
@@ -125,120 +123,503 @@ public class ListenCommand : BaseCommand
             manager.RegisterPositionHandler(
                 onAdd: positionModel =>
                 {
-                    var elapsed = (DateTime.Now - startTime).TotalMilliseconds;
-
-                    var volume = positionModel.VolumeExt > 0
-                        ? positionModel.VolumeExt / 10000.0
-                        : positionModel.Volume / 100.0;
-
-                    Logger.Information($"[POSITION ADD] #{positionModel.Position}: {positionModel.Symbol}, " +
-                               $"Action: {positionModel.Action}, Price: {positionModel.PriceOpen:F5}, " +
-                               $"Volume: {volume:F2}, Profit: {positionModel.Profit:F2}, " +
-                               $"SL: {positionModel.PriceSL:F5}, TP: {positionModel.PriceTP:F5}, " +
-                               $"Login: {positionModel.Login}, Time: {DateTimeOffset.FromUnixTimeSeconds(positionModel.TimeCreate):yyyy-MM-dd HH:mm:ss} " +
-                               $"(Elapsed: {elapsed:F0}ms)");
+                    LogPosition(Logger, "POSITION ADD", positionModel);
                 },
                 onUpdate: positionModel =>
                 {
-                    var volume = positionModel.VolumeExt > 0
-                        ? positionModel.VolumeExt / 10000.0
-                        : positionModel.Volume / 100.0;
-
-                    Logger.Information($"[POSITION UPDATE] #{positionModel.Position}: {positionModel.Symbol}, " +
-                               $"Volume: {volume:F2}, Profit: {positionModel.Profit:F2}, Price: {positionModel.PriceCurrent:F5}");
+                    LogPosition(Logger, "POSITION UPDATE", positionModel);
                 },
                 onDelete: positionModel =>
                 {
-                    Logger.Information($"[POSITION DELETE] #{positionModel.Position}: {positionModel.Symbol}, " +
-                               $"Final Profit: {positionModel.Profit:F2}");
+                    LogPosition(Logger, "POSITION DELETE", positionModel);
+                },
+                onClean: login =>
+                {
+                    Logger.Information("POSITION CLEAN: login={Login}", login);
+                },
+                onSync: () =>
+                {
+                    Logger.Information("POSITION SYNC completed");
                 }
             );
         }
 
-        // Wait for key press
-        Console.ReadKey(true);
+        // Register Manager handler BEFORE connecting
+        manager.RegisterManagerHandler(
+            onConnect: () =>
+            {
+                Logger.Information("MANAGER: Connected to MT5 server");
+            },
+            onDisconnect: () =>
+            {
+                Logger.Information("MANAGER: Disconnected from MT5 server");
+            },
+            onTradeAccountSet: (retCode, login, user, account, orders, positions) =>
+            {
+                Logger.Information(
+                    "MANAGER TRADE_ACCOUNT_SET: RetCode={RetCode} Login={Login} User[Name={Name} Group={Group}] Account[Balance={Balance} Equity={Equity}] Orders={OrderCount} Positions={PositionCount}",
+                    retCode, login, user.FirstName, user.Group, account.Balance, account.Equity, orders.Count, positions.Count);
+                foreach (var order in orders.Take(3))
+                {
+                    Logger.Information("  Order: {Order} {Symbol} {Volume}@{Price} State={State}",
+                        order.Order, order.Symbol, order.VolumeInitial, order.PriceOrder, order.State);
+                }
+                if (orders.Count > 3)
+                {
+                    Logger.Information("  ... and {MoreCount} more orders", orders.Count - 3);
+                }
+                foreach (var pos in positions.Take(3))
+                {
+                    Logger.Information("  Position: {PosID} {Symbol} {Volume}@{Price}",
+                        pos.Position, pos.Symbol, pos.Volume, pos.PriceOpen);
+                }
+                if (positions.Count > 3)
+                {
+                    Logger.Information("  ... and {MoreCount} more positions", positions.Count - 3);
+                }
+            }
+        );
 
-        Logger.Information("Stopped listening.");
+        // Now connect AFTER registering handlers
+        using (manager)
+        {
+            // Subscribe to connection state changes
+            manager.ConnectionStateChanged += (sender, e) =>
+            {
+                Logger.Information("Connection state changed: {OldState} -> {NewState} ({Message})", e.OldState, e.NewState, e.Message);
+            };
+
+            // Connect
+            var connectResult = await manager.ConnectAsync(settings);
+            if (!connectResult.IsSuccess)
+            {
+                Logger.Error("Failed to connect: {Message}", connectResult.Message);
+                return 1;
+            }
+
+            Logger.Information("Connected successfully!");
+
+            // Wait for key press
+            Console.ReadKey(true);
+
+            Logger.Information("Stopped listening.");
+        }
+
         return 0;
     }
 
     public async Task<int> ProtobufAsync(string? server, ulong? login, string? password, string? types)
     {
         var settings = CreateConnectionSettings(server, login, password);
-        using var manager = await ConnectAsync(settings);
 
         Logger.Information("=== Listening to Trade Events (Protobuf Models) ===");
         Logger.Information($"Subscribed to: {types ?? EventTypes.Deal}");
         Logger.Information("Press any key to stop...\n");
 
-        long totalBytes = 0;
-        int totalDeals = 0;
+        var typeList = (types ?? EventTypes.Deal).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        bool all = typeList.Contains(EventTypes.All, StringComparer.OrdinalIgnoreCase);
 
-        // Register Protobuf model handlers
-        manager.RegisterDealProtoHandler(
-            onAdd: protoDeal =>
-            {
-                totalDeals++;
-                byte[] bytes = protoDeal.ToByteArray();
-                totalBytes += bytes.Length;
+        // Create manager first (subscribe BEFORE connecting)
+        var manager = new MT5Manager(Logger);
 
-                Logger.Information($"[PROTO DEAL] #{protoDeal.Deal}: {protoDeal.Symbol}, " +
-                           $"Binary size: {bytes.Length} bytes");
-
-                // Show stats every 10 deals
-                if (totalDeals % 10 == 0)
+        // Register Protobuf model handlers BEFORE connecting
+        if (all || typeList.Contains(EventTypes.Deal, StringComparer.OrdinalIgnoreCase))
+        {
+            manager.RegisterDealProtoHandler(
+                onAdd: protoDeal =>
                 {
-                    Logger.Information($"Stats: {totalDeals} deals, avg size: {totalBytes / totalDeals} bytes");
+                    LogDealProto(Logger, "PROTO DEAL ADD", protoDeal);
+                },
+                onUpdate: protoDeal =>
+                {
+                    LogDealProto(Logger, "PROTO DEAL UPDATE", protoDeal);
+                },
+                onDelete: protoDeal =>
+                {
+                    LogDealProto(Logger, "PROTO DEAL DELETE", protoDeal);
+                },
+                onClean: login =>
+                {
+                    Logger.Information("PROTO DEAL CLEAN: login={Login}", login);
+                },
+                onSync: () =>
+                {
+                    Logger.Information("PROTO DEAL SYNC completed");
+                },
+                onPerform: (deal, account, position) =>
+                {
+                    Logger.Information("=== PROTO DEAL PERFORM START ===");
+                    LogDealProto(Logger, "PROTO DEAL (in PERFORM)", deal);
+                    LogAccountProto(Logger, "PROTO ACCOUNT (in PERFORM)", account);
+                    LogPositionProto(Logger, "PROTO POSITION (in PERFORM)", position);
+                    Logger.Information("=== PROTO DEAL PERFORM END ===");
+                }
+            );
+        }
+
+        if (all || typeList.Contains(EventTypes.Order, StringComparer.OrdinalIgnoreCase))
+        {
+            manager.RegisterOrderProtoHandler(
+                onAdd: protoOrder =>
+                {
+                    LogOrderProto(Logger, "PROTO ORDER ADD", protoOrder);
+                },
+                onUpdate: protoOrder =>
+                {
+                    LogOrderProto(Logger, "PROTO ORDER UPDATE", protoOrder);
+                },
+                onDelete: protoOrder =>
+                {
+                    LogOrderProto(Logger, "PROTO ORDER DELETE", protoOrder);
+                },
+                onClean: login =>
+                {
+                    Logger.Information("PROTO ORDER CLEAN: login={Login}", login);
+                },
+                onSync: () =>
+                {
+                    Logger.Information("PROTO ORDER SYNC completed");
+                }
+            );
+        }
+
+        if (all || typeList.Contains(EventTypes.Position, StringComparer.OrdinalIgnoreCase))
+        {
+            manager.RegisterPositionProtoHandler(
+                onAdd: protoPosition =>
+                {
+                    LogPositionProto(Logger, "PROTO POSITION ADD", protoPosition);
+                },
+                onUpdate: protoPosition =>
+                {
+                    LogPositionProto(Logger, "PROTO POSITION UPDATE", protoPosition);
+                },
+                onDelete: protoPosition =>
+                {
+                    LogPositionProto(Logger, "PROTO POSITION DELETE", protoPosition);
+                },
+                onClean: login =>
+                {
+                    Logger.Information("PROTO POSITION CLEAN: login={Login}", login);
+                },
+                onSync: () =>
+                {
+                    Logger.Information("PROTO POSITION SYNC completed");
+                }
+            );
+        }
+
+        // Register Manager handler BEFORE connecting
+        manager.RegisterManagerProtoHandler(
+            onConnect: () =>
+            {
+                Logger.Information("MANAGER: Connected to MT5 server");
+            },
+            onDisconnect: () =>
+            {
+                Logger.Information("MANAGER: Disconnected from MT5 server");
+            },
+            onTradeAccountSet: (retCode, login, user, account, orders, positions) =>
+            {
+                Logger.Information(
+                    "MANAGER TRADE_ACCOUNT_SET: RetCode={RetCode} Login={Login} User[Name={Name} Group={Group}] Account[Balance={Balance} Equity={Equity}] Orders={OrderCount} Positions={PositionCount}",
+                    retCode, login, user.FirstName, user.Group, account.Balance, account.Equity, orders.Count, positions.Count);
+                foreach (var order in orders.Take(3))
+                {
+                    Logger.Information("  Order: {Order} {Symbol} {Volume}@{Price} State={State}",
+                        order.Order, order.Symbol, order.VolumeInitial, order.PriceOrder, order.State);
+                }
+                if (orders.Count > 3)
+                {
+                    Logger.Information("  ... and {MoreCount} more orders", orders.Count - 3);
+                }
+                foreach (var pos in positions.Take(3))
+                {
+                    Logger.Information("  Position: {PosID} {Symbol} {Volume}@{Price}",
+                        pos.Position, pos.Symbol, pos.Volume, pos.PriceOpen);
+                }
+                if (positions.Count > 3)
+                {
+                    Logger.Information("  ... and {MoreCount} more positions", positions.Count - 3);
                 }
             }
         );
 
-        // Wait for key press
-        Console.ReadKey(true);
+        // Now connect AFTER registering handlers
+        using (manager)
+        {
+            // Subscribe to connection state changes
+            manager.ConnectionStateChanged += (sender, e) =>
+            {
+                Logger.Information("Connection state changed: {OldState} -> {NewState} ({Message})", e.OldState, e.NewState, e.Message);
+            };
 
-        Logger.Information($"Stopped listening. Total: {totalDeals} deals, {totalBytes:N0} bytes");
+            // Connect
+            var connectResult = await manager.ConnectAsync(settings);
+            if (!connectResult.IsSuccess)
+            {
+                Logger.Error("Failed to connect: {Message}", connectResult.Message);
+                return 1;
+            }
+
+            Logger.Information("Connected successfully!");
+
+            // Wait for key press
+            Console.ReadKey(true);
+
+            Logger.Information("Stopped listening.");
+        }
+
         return 0;
     }
 
-    public async Task<int> MixedAsync(string? server, ulong? login, string? password, string? types)
+    #region Logging Helpers
+
+    /// <summary>
+    /// Logs all properties of a DealModel using structured logging (excludes ApiData)
+    /// </summary>
+    private static void LogDeal(ILogger logger, string eventType, Manager.Models.DealModel deal)
     {
-        var settings = CreateConnectionSettings(server, login, password);
-        using var manager = await ConnectAsync(settings);
-
-        Logger.Information("=== Listening with Mixed Handlers ===");
-        Logger.Information($"- Subscribed to: {types ?? EventTypes.Deal}");
-        Logger.Information("- POCO models for console display");
-        Logger.Information("- Protobuf models for binary serialization");
-        Logger.Information("Press any key to stop...\n");
-
-        // Handler 1: POCO for display
-        manager.RegisterDealHandler(
-            onAdd: dealModel =>
-            {
-                Logger.Information($"[DISPLAY] Deal #{dealModel.Deal}: {dealModel.Symbol}");
-            }
-        );
-
-        // Handler 2: Protobuf for serialization
-        manager.RegisterDealProtoHandler(
-            onAdd: protoDeal =>
-            {
-                // Simulate sending to Kafka/Redis
-                byte[] data = protoDeal.ToByteArray();
-                Logger.Debug($"[SERIALIZED] Deal #{protoDeal.Deal} -> {data.Length} bytes");
-            }
-        );
-
-        // Wait for key press
-        Console.ReadKey(true);
-
-        Logger.Information("Stopped listening.");
-        return 0;
+        logger.Information(
+            "[{EventType}] Deal:{Deal} ExtID:{ExternalID} Login:{Login} Dealer:{Dealer} Order:{Order} " +
+            "Symbol:{Symbol} Action:{Action} Entry:{Entry} Reason:{Reason} " +
+            "Digits:{Digits} DigitsCurr:{DigitsCurrency} ContractSize:{ContractSize} " +
+            "Time:{Time} TimeMsc:{TimeMsc} " +
+            "Price:{Price} PricePos:{PricePosition} PriceSL:{PriceSL} PriceTP:{PriceTP} PriceGw:{PriceGateway} " +
+            "Vol:{Volume} VolClosed:{VolumeClosed} VolExt:{VolumeExt} VolClosedExt:{VolumeClosedExt} " +
+            "Profit:{Profit} ProfitRaw:{ProfitRaw} Storage:{Storage} Comm:{Commission} Fee:{Fee} " +
+            "Value:{Value} ObsValue:{ObsoleteValue} " +
+            "RateProfit:{RateProfit} RateMargin:{RateMargin} " +
+            "TickVal:{TickValue} TickSize:{TickSize} " +
+            "Bid:{MarketBid} Ask:{MarketAsk} Last:{MarketLast} " +
+            "ExpertID:{ExpertID} PosID:{PositionID} " +
+            "Gateway:{Gateway} Comment:{Comment} " +
+            "Flags:{Flags} ModFlags:{ModificationFlags}",
+            eventType, deal.Deal, deal.ExternalID, deal.Login, deal.Dealer, deal.Order,
+            deal.Symbol, deal.Action, deal.Entry, deal.Reason,
+            deal.Digits, deal.DigitsCurrency, deal.ContractSize,
+            deal.Time, deal.TimeMsc,
+            deal.Price, deal.PricePosition, deal.PriceSL, deal.PriceTP, deal.PriceGateway,
+            deal.Volume, deal.VolumeClosed, deal.VolumeExt, deal.VolumeClosedExt,
+            deal.Profit, deal.ProfitRaw, deal.Storage, deal.Commission, deal.Fee,
+            deal.Value, deal.ObsoleteValue,
+            deal.RateProfit, deal.RateMargin,
+            deal.TickValue, deal.TickSize,
+            deal.MarketBid, deal.MarketAsk, deal.MarketLast,
+            deal.ExpertID, deal.PositionID,
+            deal.Gateway, deal.Comment,
+            deal.Flags, deal.ModificationFlags);
     }
 
-    #region Event Handlers
+    /// <summary>
+    /// Logs all properties of a Protobuf DealModel using structured logging
+    /// </summary>
+    private static void LogDealProto(ILogger logger, string eventType, ProtoDeal deal)
+    {
+        logger.Information(
+            "[{EventType}] Deal:{Deal} ExtID:{ExternalId} Login:{Login} Dealer:{Dealer} Order:{Order} " +
+            "Symbol:{Symbol} Action:{Action} Entry:{Entry} Reason:{Reason} " +
+            "Digits:{Digits} DigitsCurr:{DigitsCurrency} ContractSize:{ContractSize} " +
+            "Time:{Time} TimeMsc:{TimeMsc} " +
+            "Price:{Price} PricePos:{PricePosition} PriceSL:{PriceSl} PriceTP:{PriceTp} PriceGw:{PriceGateway} " +
+            "Vol:{Volume} VolClosed:{VolumeClosed} VolExt:{VolumeExt} VolClosedExt:{VolumeClosedExt} " +
+            "Profit:{Profit} ProfitRaw:{ProfitRaw} Storage:{Storage} Comm:{Commission} Fee:{Fee} " +
+            "Value:{Value} ObsValue:{ObsoleteValue} " +
+            "RateProfit:{RateProfit} RateMargin:{RateMargin} " +
+            "TickVal:{TickValue} TickSize:{TickSize} " +
+            "Bid:{MarketBid} Ask:{MarketAsk} Last:{MarketLast} " +
+            "ExpertID:{ExpertId} PosID:{PositionId} " +
+            "Gateway:{Gateway} Comment:{Comment} " +
+            "Flags:{Flags} ModFlags:{ModificationFlags}",
+            eventType, deal.Deal, deal.ExternalId, deal.Login, deal.Dealer, deal.Order,
+            deal.Symbol, deal.Action, deal.Entry, deal.Reason,
+            deal.Digits, deal.DigitsCurrency, deal.ContractSize,
+            deal.Time, deal.TimeMsc,
+            deal.Price, deal.PricePosition, deal.PriceSl, deal.PriceTp, deal.PriceGateway,
+            deal.Volume, deal.VolumeClosed, deal.VolumeExt, deal.VolumeClosedExt,
+            deal.Profit, deal.ProfitRaw, deal.Storage, deal.Commission, deal.Fee,
+            deal.Value, deal.ObsoleteValue,
+            deal.RateProfit, deal.RateMargin,
+            deal.TickValue, deal.TickSize,
+            deal.MarketBid, deal.MarketAsk, deal.MarketLast,
+            deal.ExpertId, deal.PositionId,
+            deal.Gateway, deal.Comment,
+            deal.Flags, deal.ModificationFlags);
+    }
 
-    // No longer using CIMT... objects in public handlers
+    /// <summary>
+    /// Logs all properties of an AccountModel using structured logging
+    /// </summary>
+    private static void LogAccount(ILogger logger, string eventType, Manager.Models.AccountModel account)
+    {
+#pragma warning disable CS0618 // Commission is obsolete but we want to log it
+        logger.Information(
+            "[{EventType}] Login:{Login} CurrencyDigits:{CurrencyDigits} " +
+            "Balance:{Balance} Credit:{Credit} Equity:{Equity} Profit:{Profit} " +
+            "Margin:{Margin} MarginFree:{MarginFree} MarginLevel:{MarginLevel} MarginLeverage:{MarginLeverage} " +
+            "MarginInitial:{MarginInitial} MarginMaintenance:{MarginMaintenance} " +
+            "Storage:{Storage} Floating:{Floating} Commission:{Commission} " +
+            "SOActivation:{SOActivation} SOTime:{SOTime} SOLevel:{SOLevel} SOEquity:{SOEquity} SOMargin:{SOMargin} " +
+            "BlockedCommission:{BlockedCommission} BlockedProfit:{BlockedProfit} " +
+            "Assets:{Assets} Liabilities:{Liabilities}",
+            eventType, account.Login, account.CurrencyDigits,
+            account.Balance, account.Credit, account.Equity, account.Profit,
+            account.Margin, account.MarginFree, account.MarginLevel, account.MarginLeverage,
+            account.MarginInitial, account.MarginMaintenance,
+            account.Storage, account.Floating, account.Commission,
+            account.SOActivation, account.SOTime, account.SOLevel, account.SOEquity, account.SOMargin,
+            account.BlockedCommission, account.BlockedProfit,
+            account.Assets, account.Liabilities);
+#pragma warning restore CS0618
+    }
+
+    /// <summary>
+    /// Logs all properties of a Protobuf AccountModel using structured logging
+    /// </summary>
+    private static void LogAccountProto(ILogger logger, string eventType, ProtoAccount account)
+    {
+#pragma warning disable CS0618 // Commission is obsolete but we want to log it
+        logger.Information(
+            "[{EventType}] Login:{Login} CurrencyDigits:{CurrencyDigits} " +
+            "Balance:{Balance} Credit:{Credit} Equity:{Equity} Profit:{Profit} " +
+            "Margin:{Margin} MarginFree:{MarginFree} MarginLevel:{MarginLevel} MarginLeverage:{MarginLeverage} " +
+            "MarginInitial:{MarginInitial} MarginMaintenance:{MarginMaintenance} " +
+            "Storage:{Storage} Floating:{Floating} Commission:{Commission} " +
+            "BlockedCommission:{BlockedCommission} BlockedProfit:{BlockedProfit} " +
+            "Assets:{Assets} Liabilities:{Liabilities}",
+            eventType, account.Login, account.CurrencyDigits,
+            account.Balance, account.Credit, account.Equity, account.Profit,
+            account.Margin, account.MarginFree, account.MarginLevel, account.MarginLeverage,
+            account.MarginInitial, account.MarginMaintenance,
+            account.Storage, account.Floating, account.Commission,
+            account.BlockedCommission, account.BlockedProfit,
+            account.Assets, account.Liabilities);
+#pragma warning restore CS0618
+    }
+
+    /// <summary>
+    /// Logs all properties of an OrderModel using structured logging (excludes ApiData)
+    /// </summary>
+    private static void LogOrder(ILogger logger, string eventType, Manager.Models.OrderModel order)
+    {
+        logger.Information(
+            "[{EventType}] Order:{Order} ExtID:{ExternalID} Login:{Login} Dealer:{Dealer} Symbol:{Symbol} " +
+            "Digits:{Digits} DigitsCurr:{DigitsCurrency} ContractSize:{ContractSize} " +
+            "State:{State} Reason:{Reason} " +
+            "TimeSetup:{TimeSetup} TimeExp:{TimeExpiration} TimeDone:{TimeDone} " +
+            "TimeSetupMsc:{TimeSetupMsc} TimeDoneMsc:{TimeDoneMsc} " +
+            "Type:{Type} TypeFill:{TypeFill} TypeTime:{TypeTime} " +
+            "PriceOrder:{PriceOrder} PriceTrigger:{PriceTrigger} PriceCurrent:{PriceCurrent} PriceSL:{PriceSL} PriceTP:{PriceTP} " +
+            "VolInit:{VolumeInitial} VolCurr:{VolumeCurrent} VolInitExt:{VolumeInitialExt} VolCurrExt:{VolumeCurrentExt} " +
+            "ExpertID:{ExpertID} PosID:{PositionID} PosByID:{PositionByID} " +
+            "ActMode:{ActivationMode} ActTime:{ActivationTime} ActPrice:{ActivationPrice} ActFlags:{ActivationFlags} " +
+            "Comment:{Comment} RateMargin:{RateMargin} ModFlags:{ModificationFlags}",
+            eventType, order.Order, order.ExternalID, order.Login, order.Dealer, order.Symbol,
+            order.Digits, order.DigitsCurrency, order.ContractSize,
+            order.State, order.Reason,
+            order.TimeSetup, order.TimeExpiration, order.TimeDone,
+            order.TimeSetupMsc, order.TimeDoneMsc,
+            order.Type, order.TypeFill, order.TypeTime,
+            order.PriceOrder, order.PriceTrigger, order.PriceCurrent, order.PriceSL, order.PriceTP,
+            order.VolumeInitial, order.VolumeCurrent, order.VolumeInitialExt, order.VolumeCurrentExt,
+            order.ExpertID, order.PositionID, order.PositionByID,
+            order.ActivationMode, order.ActivationTime, order.ActivationPrice, order.ActivationFlags,
+            order.Comment, order.RateMargin, order.ModificationFlags);
+    }
+
+    /// <summary>
+    /// Logs all properties of a Protobuf OrderModel using structured logging
+    /// </summary>
+    private static void LogOrderProto(ILogger logger, string eventType, ProtoOrder order)
+    {
+        logger.Information(
+            "[{EventType}] Order:{Order} ExtID:{ExternalId} Login:{Login} Dealer:{Dealer} Symbol:{Symbol} " +
+            "Digits:{Digits} DigitsCurr:{DigitsCurrency} ContractSize:{ContractSize} " +
+            "State:{State} Reason:{Reason} " +
+            "TimeSetup:{TimeSetup} TimeExp:{TimeExpiration} TimeDone:{TimeDone} " +
+            "TimeSetupMsc:{TimeSetupMsc} TimeDoneMsc:{TimeDoneMsc} " +
+            "Type:{Type} TypeFill:{TypeFill} TypeTime:{TypeTime} " +
+            "PriceOrder:{PriceOrder} PriceTrigger:{PriceTrigger} PriceCurrent:{PriceCurrent} PriceSL:{PriceSl} PriceTP:{PriceTp} " +
+            "VolInit:{VolumeInitial} VolCurr:{VolumeCurrent} VolInitExt:{VolumeInitialExt} VolCurrExt:{VolumeCurrentExt} " +
+            "ExpertID:{ExpertId} PosID:{PositionId} PosByID:{PositionById} " +
+            "ActMode:{ActivationMode} ActTime:{ActivationTime} ActPrice:{ActivationPrice} ActFlags:{ActivationFlags} " +
+            "Comment:{Comment} RateMargin:{RateMargin} ModFlags:{ModificationFlags}",
+            eventType, order.Order, order.ExternalId, order.Login, order.Dealer, order.Symbol,
+            order.Digits, order.DigitsCurrency, order.ContractSize,
+            order.State, order.Reason,
+            order.TimeSetup, order.TimeExpiration, order.TimeDone,
+            order.TimeSetupMsc, order.TimeDoneMsc,
+            order.Type, order.TypeFill, order.TypeTime,
+            order.PriceOrder, order.PriceTrigger, order.PriceCurrent, order.PriceSl, order.PriceTp,
+            order.VolumeInitial, order.VolumeCurrent, order.VolumeInitialExt, order.VolumeCurrentExt,
+            order.ExpertId, order.PositionId, order.PositionById,
+            order.ActivationMode, order.ActivationTime, order.ActivationPrice, order.ActivationFlags,
+            order.Comment, order.RateMargin, order.ModificationFlags);
+    }
+
+    /// <summary>
+    /// Logs all properties of a PositionModel using structured logging (excludes ApiData)
+    /// </summary>
+    private static void LogPosition(ILogger logger, string eventType, Manager.Models.PositionModel position)
+    {
+        logger.Information(
+            "[{EventType}] Pos:{Position} ExtID:{ExternalID} Login:{Login} Dealer:{Dealer} Symbol:{Symbol} " +
+            "Action:{Action} Reason:{Reason} " +
+            "Digits:{Digits} DigitsCurr:{DigitsCurrency} ContractSize:{ContractSize} " +
+            "TimeCreate:{TimeCreate} TimeUpdate:{TimeUpdate} TimeCreateMsc:{TimeCreateMsc} TimeUpdateMsc:{TimeUpdateMsc} " +
+            "PriceOpen:{PriceOpen} PriceCurrent:{PriceCurrent} PriceSL:{PriceSL} PriceTP:{PriceTP} " +
+            "Vol:{Volume} VolExt:{VolumeExt} " +
+            "Profit:{Profit} Storage:{Storage} ObsValue:{ObsoleteValue} " +
+            "RateProfit:{RateProfit} RateMargin:{RateMargin} " +
+            "ExpertID:{ExpertID} ExpertPosID:{ExpertPositionID} " +
+            "Comment:{Comment} " +
+            "ActMode:{ActivationMode} ActTime:{ActivationTime} ActPrice:{ActivationPrice} ActFlags:{ActivationFlags} " +
+            "ModFlags:{ModificationFlags}",
+            eventType, position.Position, position.ExternalID, position.Login, position.Dealer, position.Symbol,
+            position.Action, position.Reason,
+            position.Digits, position.DigitsCurrency, position.ContractSize,
+            position.TimeCreate, position.TimeUpdate, position.TimeCreateMsc, position.TimeUpdateMsc,
+            position.PriceOpen, position.PriceCurrent, position.PriceSL, position.PriceTP,
+            position.Volume, position.VolumeExt,
+            position.Profit, position.Storage, position.ObsoleteValue,
+            position.RateProfit, position.RateMargin,
+            position.ExpertID, position.ExpertPositionID,
+            position.Comment,
+            position.ActivationMode, position.ActivationTime, position.ActivationPrice, position.ActivationFlags,
+            position.ModificationFlags);
+    }
+
+    /// <summary>
+    /// Logs all properties of a Protobuf PositionModel using structured logging
+    /// </summary>
+    private static void LogPositionProto(ILogger logger, string eventType, ProtoPosition position)
+    {
+        logger.Information(
+            "[{EventType}] Pos:{Position} ExtID:{ExternalId} Login:{Login} Dealer:{Dealer} Symbol:{Symbol} " +
+            "Action:{Action} Reason:{Reason} " +
+            "Digits:{Digits} DigitsCurr:{DigitsCurrency} ContractSize:{ContractSize} " +
+            "TimeCreate:{TimeCreate} TimeUpdate:{TimeUpdate} TimeCreateMsc:{TimeCreateMsc} TimeUpdateMsc:{TimeUpdateMsc} " +
+            "PriceOpen:{PriceOpen} PriceCurrent:{PriceCurrent} PriceSL:{PriceSl} PriceTP:{PriceTp} " +
+            "Vol:{Volume} VolExt:{VolumeExt} " +
+            "Profit:{Profit} Storage:{Storage} ObsValue:{ObsoleteValue} " +
+            "RateProfit:{RateProfit} RateMargin:{RateMargin} " +
+            "ExpertID:{ExpertId} ExpertPosID:{ExpertPositionId} " +
+            "Comment:{Comment} " +
+            "ActMode:{ActivationMode} ActTime:{ActivationTime} ActPrice:{ActivationPrice} ActFlags:{ActivationFlags} " +
+            "ModFlags:{ModificationFlags}",
+            eventType, position.Position, position.ExternalId, position.Login, position.Dealer, position.Symbol,
+            position.Action, position.Reason,
+            position.Digits, position.DigitsCurrency, position.ContractSize,
+            position.TimeCreate, position.TimeUpdate, position.TimeCreateMsc, position.TimeUpdateMsc,
+            position.PriceOpen, position.PriceCurrent, position.PriceSl, position.PriceTp,
+            position.Volume, position.VolumeExt,
+            position.Profit, position.Storage, position.ObsoleteValue,
+            position.RateProfit, position.RateMargin,
+            position.ExpertId, position.ExpertPositionId,
+            position.Comment,
+            position.ActivationMode, position.ActivationTime, position.ActivationPrice, position.ActivationFlags,
+            position.ModificationFlags);
+    }
 
     #endregion
 }

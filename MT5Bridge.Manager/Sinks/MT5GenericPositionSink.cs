@@ -13,17 +13,23 @@ internal class MT5GenericPositionSink<T> : CIMTPositionSink where T : class
     private readonly Action<T>? _onAdd;
     private readonly Action<T>? _onUpdate;
     private readonly Action<T>? _onDelete;
+    private readonly Action<ulong>? _onClean;
+    private readonly Action? _onSync;
 
     public MT5GenericPositionSink(
         Func<CIMTPosition, T> converter,
         Action<T>? onAdd,
         Action<T>? onUpdate,
-        Action<T>? onDelete)
+        Action<T>? onDelete,
+        Action<ulong>? onClean = null,
+        Action? onSync = null)
     {
         _converter = converter ?? throw new ArgumentNullException(nameof(converter));
         _onAdd = onAdd;
         _onUpdate = onUpdate;
         _onDelete = onDelete;
+        _onClean = onClean;
+        _onSync = onSync;
     }
 
     public override void OnPositionAdd(CIMTPosition position)
@@ -51,5 +57,15 @@ internal class MT5GenericPositionSink<T> : CIMTPositionSink where T : class
             var model = _converter(position);
             _onDelete(model);
         }
+    }
+
+    public override void OnPositionSync()
+    {
+        _onSync?.Invoke();
+    }
+
+    public override void OnPositionClean(ulong login)
+    {
+        _onClean?.Invoke(login);
     }
 }

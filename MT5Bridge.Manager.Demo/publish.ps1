@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    MT5Bridge.MT5.Demo Release Script for Windows x64
+    MT5Bridge.Manager.Demo Release Script for Windows x64
 
 .DESCRIPTION
     Parametric packaging script for Windows 64-bit platform, supports Debug/Release and self-contained options
@@ -94,7 +94,7 @@ try {
     }
     
     Write-ColorOutput "========================================" "Cyan"
-    Write-ColorOutput "  MT5Bridge.MT5.Demo Build Script" "Cyan"
+    Write-ColorOutput "  MT5Bridge.Manager.Demo Build Script" "Cyan"
     Write-ColorOutput "  Target Platform: Windows x64" "Cyan"
     Write-ColorOutput "========================================" "Cyan"
     Write-Host ""
@@ -108,7 +108,7 @@ try {
     Write-Host "  - Include Symbols: $(if ($IncludeSymbols) { 'Yes (PDB files)' } else { 'No' })"
     Write-Host ""
 
-    $projectFile = Join-Path $PSScriptRoot "MT5Bridge.MT5.Demo.csproj"
+    $projectFile = Join-Path $PSScriptRoot "MT5Bridge.Manager.Demo.csproj"
     
     if (-not (Test-Path $projectFile)) {
         throw "Project file not found: $projectFile"
@@ -261,7 +261,7 @@ try {
         Write-Host "  4. Run: .\$($exeFile.Name) --help"
     }
     else {
-        $dllFile = Get-ChildItem -Path $OutputPath -Filter "MT5Bridge.MT5.Demo.dll" -File | Select-Object -First 1
+        $dllFile = Get-ChildItem -Path $OutputPath -Filter "MT5Bridge.Manager.Demo.dll" -File | Select-Object -First 1
         if ($dllFile) {
             Write-ColorOutput "DLL File: $($dllFile.Name)" "Green"
             Write-Host ""

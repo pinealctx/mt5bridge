@@ -107,9 +107,14 @@ public class MT5Manager : IMT5Manager
     public void RegisterDealHandler(
         Action<DealModel>? onAdd = null,
         Action<DealModel>? onUpdate = null,
-        Action<DealModel>? onDelete = null)
+        Action<DealModel>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null,
+        Action<DealModel, AccountModel, PositionModel>? onPerform = null)
     {
-        RegisterDealHandlerInternal<DealModel>(m => m.ToModel(), onAdd, onUpdate, onDelete);
+        RegisterDealHandlerInternal<DealModel, AccountModel, PositionModel>(
+            m => m.ToModel(), onAdd, onUpdate, onDelete, onClean, onSync,
+            a => a.ToModel(), p => p.ToModel(), onPerform);
     }
 
     /// <summary>
@@ -118,9 +123,14 @@ public class MT5Manager : IMT5Manager
     public void RegisterDealProtoHandler(
         Action<ProtoDeal>? onAdd = null,
         Action<ProtoDeal>? onUpdate = null,
-        Action<ProtoDeal>? onDelete = null)
+        Action<ProtoDeal>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null,
+        Action<ProtoDeal, ProtoAccount, ProtoPosition>? onPerform = null)
     {
-        RegisterDealHandlerInternal<ProtoDeal>(m => m.ToProto(), onAdd, onUpdate, onDelete);
+        RegisterDealHandlerInternal<ProtoDeal, ProtoAccount, ProtoPosition>(
+            m => m.ToProto(), onAdd, onUpdate, onDelete, onClean, onSync,
+            a => a.ToProto(), p => p.ToProto(), onPerform);
     }
 
     /// <summary>
@@ -129,9 +139,11 @@ public class MT5Manager : IMT5Manager
     public void RegisterOrderHandler(
         Action<OrderModel>? onAdd = null,
         Action<OrderModel>? onUpdate = null,
-        Action<OrderModel>? onDelete = null)
+        Action<OrderModel>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null)
     {
-        RegisterOrderHandlerInternal<OrderModel>(m => m.ToModel(), onAdd, onUpdate, onDelete);
+        RegisterOrderHandlerInternal<OrderModel>(m => m.ToModel(), onAdd, onUpdate, onDelete, onClean, onSync);
     }
 
     /// <summary>
@@ -140,9 +152,11 @@ public class MT5Manager : IMT5Manager
     public void RegisterOrderProtoHandler(
         Action<ProtoOrder>? onAdd = null,
         Action<ProtoOrder>? onUpdate = null,
-        Action<ProtoOrder>? onDelete = null)
+        Action<ProtoOrder>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null)
     {
-        RegisterOrderHandlerInternal<ProtoOrder>(m => m.ToProto(), onAdd, onUpdate, onDelete);
+        RegisterOrderHandlerInternal<ProtoOrder>(m => m.ToProto(), onAdd, onUpdate, onDelete, onClean, onSync);
     }
 
     /// <summary>
@@ -151,9 +165,11 @@ public class MT5Manager : IMT5Manager
     public void RegisterPositionHandler(
         Action<PositionModel>? onAdd = null,
         Action<PositionModel>? onUpdate = null,
-        Action<PositionModel>? onDelete = null)
+        Action<PositionModel>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null)
     {
-        RegisterPositionHandlerInternal<PositionModel>(m => m.ToModel(), onAdd, onUpdate, onDelete);
+        RegisterPositionHandlerInternal<PositionModel>(m => m.ToModel(), onAdd, onUpdate, onDelete, onClean, onSync);
     }
 
     /// <summary>
@@ -162,23 +178,68 @@ public class MT5Manager : IMT5Manager
     public void RegisterPositionProtoHandler(
         Action<ProtoPosition>? onAdd = null,
         Action<ProtoPosition>? onUpdate = null,
-        Action<ProtoPosition>? onDelete = null)
+        Action<ProtoPosition>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null)
     {
-        RegisterPositionHandlerInternal<ProtoPosition>(m => m.ToProto(), onAdd, onUpdate, onDelete);
+        RegisterPositionHandlerInternal<ProtoPosition>(m => m.ToProto(), onAdd, onUpdate, onDelete, onClean, onSync);
     }
 
     /// <summary>
-    /// Register a typed deal event handler
+    /// Register a manager event handler (POCO)
     /// </summary>
-    private void RegisterDealHandlerInternal<T>(
-        Func<CIMTDeal, T> converter,
-        Action<T>? onAdd = null,
-        Action<T>? onUpdate = null,
-        Action<T>? onDelete = null) where T : class
+    public void RegisterManagerHandler(
+        Action? onConnect = null,
+        Action? onDisconnect = null,
+        Action<MTRetCode, long, UserModel, AccountModel, List<OrderModel>, List<PositionModel>>? onTradeAccountSet = null)
     {
-        if (converter == null) throw new ArgumentNullException(nameof(converter));
+        RegisterManagerHandlerInternal<UserModel, AccountModel, OrderModel, PositionModel>(
+            onConnect, onDisconnect,
+            u => u.ToModel(),
+            a => a.ToModel(),
+            o => o.ToModel(),
+            p => p.ToModel(),
+            onTradeAccountSet);
+    }
 
-        var sink = new MT5GenericDealSink<T>(converter, onAdd, onUpdate, onDelete);
+    /// <summary>
+    /// Register a manager event handler (Protobuf)
+    /// </summary>
+    public void RegisterManagerProtoHandler(
+        Action? onConnect = null,
+        Action? onDisconnect = null,
+        Action<MTRetCode, long, ProtoUser, ProtoAccount, List<ProtoOrder>, List<ProtoPosition>>? onTradeAccountSet = null)
+    {
+        RegisterManagerHandlerInternal<ProtoUser, ProtoAccount, ProtoOrder, ProtoPosition>(
+            onConnect, onDisconnect,
+            u => u.ToProto(),
+            a => a.ToProto(),
+            o => o.ToProto(),
+            p => p.ToProto(),
+            onTradeAccountSet);
+    }
+
+    /// <summary>
+    /// Register a typed deal event handler with model transformations
+    /// </summary>
+    private void RegisterDealHandlerInternal<TDeal, TAccount, TPosition>(
+        Func<CIMTDeal, TDeal> dealConverter,
+        Action<TDeal>? onAdd = null,
+        Action<TDeal>? onUpdate = null,
+        Action<TDeal>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null,
+        Func<CIMTAccount, TAccount>? accountConverter = null,
+        Func<CIMTPosition, TPosition>? positionConverter = null,
+        Action<TDeal, TAccount, TPosition>? onPerform = null)
+        where TDeal : class
+        where TAccount : class
+        where TPosition : class
+    {
+        if (dealConverter == null) throw new ArgumentNullException(nameof(dealConverter));
+
+        var sink = new MT5GenericDealSink<TDeal, TAccount, TPosition>(
+            dealConverter, onAdd, onUpdate, onDelete, onClean, onSync, accountConverter, positionConverter, onPerform);
 
         if (sink.RegisterSink() != MTRetCode.MT_RET_OK)
         {
@@ -193,7 +254,7 @@ public class MT5Manager : IMT5Manager
             _manager.DealSubscribe(sink);
         }
 
-        _logger.Debug($"Registered generic deal handler for type {typeof(T).Name}");
+        _logger.Debug($"Registered generic deal handler for types {typeof(TDeal).Name}, {typeof(TAccount).Name}, {typeof(TPosition).Name}");
     }
 
     /// <summary>
@@ -203,11 +264,13 @@ public class MT5Manager : IMT5Manager
         Func<CIMTOrder, T> converter,
         Action<T>? onAdd = null,
         Action<T>? onUpdate = null,
-        Action<T>? onDelete = null) where T : class
+        Action<T>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null) where T : class
     {
         if (converter == null) throw new ArgumentNullException(nameof(converter));
 
-        var sink = new MT5GenericOrderSink<T>(converter, onAdd, onUpdate, onDelete);
+        var sink = new MT5GenericOrderSink<T>(converter, onAdd, onUpdate, onDelete, onClean, onSync);
 
         if (sink.RegisterSink() != MTRetCode.MT_RET_OK)
         {
@@ -232,11 +295,13 @@ public class MT5Manager : IMT5Manager
         Func<CIMTPosition, T> converter,
         Action<T>? onAdd = null,
         Action<T>? onUpdate = null,
-        Action<T>? onDelete = null) where T : class
+        Action<T>? onDelete = null,
+        Action<ulong>? onClean = null,
+        Action? onSync = null) where T : class
     {
         if (converter == null) throw new ArgumentNullException(nameof(converter));
 
-        var sink = new MT5GenericPositionSink<T>(converter, onAdd, onUpdate, onDelete);
+        var sink = new MT5GenericPositionSink<T>(converter, onAdd, onUpdate, onDelete, onClean, onSync);
 
         if (sink.RegisterSink() != MTRetCode.MT_RET_OK)
         {
@@ -252,6 +317,41 @@ public class MT5Manager : IMT5Manager
         }
 
         _logger.Debug($"Registered generic position handler for type {typeof(T).Name}");
+    }
+
+    /// <summary>
+    /// Register a typed manager event handler with model transformations
+    /// </summary>
+    private void RegisterManagerHandlerInternal<TUser, TAccount, TOrder, TPosition>(
+        Action? onConnect,
+        Action? onDisconnect,
+        Func<CIMTUser, TUser>? userConverter,
+        Func<CIMTAccount, TAccount>? accountConverter,
+        Func<CIMTOrder, TOrder>? orderConverter,
+        Func<CIMTPosition, TPosition>? positionConverter,
+        Action<MTRetCode, long, TUser, TAccount, List<TOrder>, List<TPosition>>? onTradeAccountSet)
+        where TUser : class
+        where TAccount : class
+        where TOrder : class
+        where TPosition : class
+    {
+        var sink = new MT5GenericManagerSink<TUser, TAccount, TOrder, TPosition>(
+            onConnect, onDisconnect, userConverter, accountConverter, orderConverter, positionConverter, onTradeAccountSet);
+
+        if (sink.RegisterSink() != MTRetCode.MT_RET_OK)
+        {
+            throw new InvalidOperationException("Failed to register generic manager sink");
+        }
+
+        _genericSinks.Add(sink);
+
+        // If already connected, subscribe immediately
+        if (_manager != null && IsConnected)
+        {
+            _manager.Subscribe(sink);
+        }
+
+        _logger.Debug($"Registered generic manager handler for types {typeof(TUser).Name}, {typeof(TAccount).Name}, {typeof(TOrder).Name}, {typeof(TPosition).Name}");
     }
 
     #endregion

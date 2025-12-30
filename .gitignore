@@ -60,3 +60,9 @@ nunit-*.xml
 .vs
 .history
 .ref
+MT5Bridge.Serilog.Demo/appsettings.*.json
+.idea
+*.user
+.wiki
+.bin
+publish

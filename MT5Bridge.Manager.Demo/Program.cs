@@ -43,10 +43,23 @@ public static class Program
     {
         Console.WriteLine("=== MT5Bridge CLI ===\n");
 
+        // Parse to get config file path first
+        string configFile = "appsettings.json";
+        Parser.Default.ParseArguments<
+            QueryGroupsOptions,
+            QueryUserOptions,
+            QueryAccountOptions,
+            QueryDealsOptions,
+            QueryBalanceOptions,
+            ListenOptions,
+            DepositOptions,
+            WithdrawOptions>(args)
+            .WithParsed<CommonOptions>(opts => configFile = opts.ConfigFile);
+
         // Load configuration
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+            .AddJsonFile(configFile, optional: true, reloadOnChange: false)
             .Build();
 
         // Configure Serilog

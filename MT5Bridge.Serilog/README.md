@@ -8,34 +8,32 @@
 
 ## English Documentation
 
-Enterprise-grade Serilog wrapper for MT5Bridge with high-performance, thread-safe, production-ready logging infrastructure.
-
-**Status**: ✅ Production Ready | **Quality**: ⭐⭐⭐⭐⭐ (5/5) | **Version**: 2.0
+Enterprise-grade Serilog configuration library for MT5Bridge with production-ready logging infrastructure.
 
 ### 🚀 Key Features
 
-#### High Performance
-- **Zero-Reflection Serialization**: Uses .NET 8 Source-Generated JSON for zero GC overhead
-- **Lazy Evaluation**: 5000x performance boost when log level is disabled (skips serialization entirely)
-- **Direct JSON Writing**: `WithModelDirect` variants avoid intermediate Dictionary allocations
-- **Recursive Structure Support**: Unlimited nesting levels for complex domain models
+#### Serilog Native Experience
+- **Direct Serilog Usage**: Zero abstraction overhead, use Serilog's native structured logging
+- **Zero-Reflection**: Serilog's built-in template syntax provides zero-reflection performance
+- **Minimal Allocations**: Direct parameter passing, no intermediate objects or dictionaries
+- **Type-Safe**: Compile-time checking of log parameters
 
 #### Enterprise Architecture
 - **Multiple Sinks**: Console (with ANSI colors), rolling File (by date/size), and AWS CloudWatch
-- **Fluent API**: Zap-like method chaining for clean, readable logging code
+- **Flexible Configuration**: JSON-based configuration with validation and defaults
 - **Comprehensive Validation**: All configuration validated at startup, directories auto-created
-- **Thread-Safe**: Double-Check Locking for static AWS client, safe concurrent access
+- **Thread-Safe**: Safe concurrent access to logging infrastructure
 
 #### Robustness & Reliability
 - **Strict Config Validation**: Null checks, parameter ranges, path validation, AWS region verification
 - **Resource Management**: `FlushAndCloseAsync()` for graceful shutdown, prevents log loss
 - **Error Recovery**: Clear error messages, exception handling at every level
-- **ModelLogger Wrapper**: Reduces parameter passing, binds Logger + Level + Context
+- **Per-Sink Log Levels**: Independent log level control for Console, File, and CloudWatch
 
 #### 📖 Complete Documentation
-- Usage patterns from basic to advanced
-- Performance tuning recommendations
-- Best practices for MT5 trading systems
+- Best practices for structured logging
+- Performance recommendations
+- Multi-sink configuration patterns
 
 ---
 
@@ -43,25 +41,36 @@ Enterprise-grade Serilog wrapper for MT5Bridge with high-performance, thread-saf
 
 ```csharp
 // 1. Load configuration from appsettings.json
-var config = new ConfigurationBuilder()
+var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
     .Build();
-var serilogConfig = config.GetSection("Logging").Get<SerilogConfig>()
-    ?? throw new InvalidOperationException("Logging config not found");
 
-// 2. Create logger (validates all config at startup)
+var serilogConfig = new SerilogConfig();
+configuration.Bind(serilogConfig);
+
+// 2. Create logger
 var logger = SerilogBootstrapper.CreateLogger(serilogConfig);
 
-// 3. Set global context for convenience (optional)
-LoggerExtensions.DefaultContext = ReadableJsonContext.Default;
+// 3. Use Serilog's native structured logging
+logger.Information("Deal executed: {DealId} {Symbol} {Action} {Volume}@{Price}",
+    deal.Deal, deal.Symbol, deal.Action, deal.Volume, deal.Price);
 
-// 4. Log with high performance - lazy evaluation!
-logger.WithModelLazy("Deal", deal, LogEventLevel.Information)
-      .Information("Trade executed");
+logger.Warning("High latency detected: {LatencyMs}ms for {Symbol}",
+    latency, symbol);
 
-// 5. Shutdown gracefully to flush all logs
+logger.Error(ex, "Trade failed: {DealId} {Symbol}",
+    dealId, symbol);
+
+// 4. Shutdown gracefully to flush all logs
 await SerilogBootstrapper.FlushAndCloseAsync();
 ```
+
+**Why Direct Serilog?**
+- ✅ Zero reflection (Serilog uses compiled expressions)
+- ✅ Minimal allocations (no intermediate objects)
+- ✅ Type-safe (compile-time checking)
+- ✅ JSON output support (all sinks can use JSON formatters)
+- ✅ Community standard (widely understood pattern)
 
 ---
 
@@ -71,30 +80,49 @@ await SerilogBootstrapper.FlushAndCloseAsync();
 
 ```json
 {
-  "Logging": {
-    "MinimumLevel": "Information",
+  "MinimumLevel": "Information",
+  "Console": {
+    "Enabled": true,
+    "MinimumLevel": null,
+    "TextFormatter": "plain",
+    "UseAnsiColors": true
+  },
+  "File": {
+    "Enabled": true,
+    "MinimumLevel": null,
+    "TextFormatter": "json",
+    "Path": "logs/app-.log",
+    "RollingInterval": "Day",
+    "FileSizeLimitBytes": 104857600,
+    "RetainedFileCountLimit": 30
+  },
+  "CloudWatch": {
+    "Enabled": false,
+    "MinimumLevel": null,
+    "TextFormatter": "compact",
+    "LogGroup": "/production/mt5bridge",
+    "CreateLogGroup": false,
+    "LogStreamPrefix": "app-",
+    "Region": "us-east-1",
+    "AccessKeyId": "",
+    "SecretKey": "",
+    "BatchSizeLimit": 500,
+    "PeriodSeconds": 5,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
+  },
+  "Diagnostics": {
+    "ThrottleWindowSeconds": 300,
+    "ThrottleLimit": 100,
     "Console": {
-      "Enabled": true,
-      "UseJson": true,
-      "UseAnsiColors": false
+      "Enabled": false
     },
     "File": {
-      "Enabled": true,
-      "Path": "logs/app-.txt",
-      "RollingInterval": "Day",
-      "FileSizeLimitBytes": 104857600,
-      "RetainedFileCountLimit": 30,
-      "UseJson": true
-    },
-    "CloudWatch": {
       "Enabled": false,
-      "Region": "us-east-1",
-      "LogGroup": "/production/mt5bridge",
-      "LogStreamPrefix": "app-",
-      "AccessKeyId": "",
-      "SecretKey": "",
-      "BatchSizeLimit": 500,
-      "PeriodSeconds": 5
+      "Path": "logs/serilog-internal.log"
     }
   }
 }
@@ -102,27 +130,41 @@ await SerilogBootstrapper.FlushAndCloseAsync();
 
 #### Configuration Reference
 
-| Option                        | Type          | Default         | Description                                                           |
-| ----------------------------- | ------------- | --------------- | --------------------------------------------------------------------- |
-| `MinimumLevel`                | LogEventLevel | Information     | Minimum log level: Verbose, Debug, Information, Warning, Error, Fatal |
-| `Console.Enabled`             | bool          | true            | Enable console output                                                 |
-| `Console.UseJson`             | bool          | false           | Output as JSON (true) or plain text (false)                           |
-| `Console.UseAnsiColors`       | bool          | true            | Use ANSI colors (set false for containers/non-TTY)                    |
-| `File.Enabled`                | bool          | false           | Enable file logging                                                   |
-| `File.Path`                   | string        | logs/log-.txt   | File path pattern (creates directories automatically)                 |
-| `File.RollingInterval`        | string        | Day             | Rolling strategy: Infinite, Year, Month, Day, Hour, Minute            |
-| `File.FileSizeLimitBytes`     | long?         | 10MB (10485760) | Max file size before rolling                                          |
-| `File.RetainedFileCountLimit` | int?          | 31              | Number of old files to keep                                           |
-| `File.UseJson`                | bool          | true            | File output format (JSON or plain text)                               |
-| `CloudWatch.Enabled`          | bool          | false           | Enable CloudWatch Logs integration                                    |
-| `CloudWatch.Region`           | string        | us-east-1       | AWS region (must be valid AWS region name)                            |
-| `CloudWatch.LogGroup`         | string        | MT5Bridge       | CloudWatch log group name (1-256 characters)                          |
-| `CloudWatch.LogStreamPrefix`  | string        | Demo            | Prefix for log stream names                                           |
-| `CloudWatch.UseJson`          | bool          | true            | CloudWatch output format (JSON or plain text)                         |
-| `CloudWatch.AccessKeyId`      | string        | (empty)         | AWS Access Key ID (optional, uses default credential chain if empty)  |
-| `CloudWatch.SecretKey`        | string        | (empty)         | AWS Secret Key (required if AccessKeyId is set)                       |
-| `CloudWatch.BatchSizeLimit`   | int           | 100             | Events per batch to CloudWatch (1-1000, AWS limit)                    |
-| `CloudWatch.PeriodSeconds`    | int           | 5               | Flush interval to CloudWatch in seconds (1-300)                       |
+| Option                                | Type           | Default                   | Description                                                                      |
+| ------------------------------------- | -------------- | ------------------------- | -------------------------------------------------------------------------------- |
+| `MinimumLevel`                        | LogEventLevel  | Information               | Minimum log level: Verbose, Debug, Information, Warning, Error, Fatal            |
+| `Console.Enabled`                     | bool           | true                      | Enable console output                                                            |
+| `Console.MinimumLevel`                | LogEventLevel? | null (global)             | Console-specific log level (overrides global MinimumLevel if set)                |
+| `Console.TextFormatter`               | string         | "" (plain)                | Format: "plain" or empty (text), "json", "compact", "rendered-compact"           |
+| `Console.UseAnsiColors`               | bool           | true                      | Use ANSI colors (set false for containers/non-TTY)                               |
+| `File.Enabled`                        | bool           | false                     | Enable file logging                                                              |
+| `File.MinimumLevel`                   | LogEventLevel? | null (global)             | File-specific log level (overrides global MinimumLevel if set)                   |
+| `File.TextFormatter`                  | string         | "" (plain)                | Format: "plain" or empty (text), "json", "compact", "rendered-compact"           |
+| `File.Path`                           | string         | logs/log-.txt             | File path pattern (creates directories automatically)                            |
+| `File.RollingInterval`                | string         | Day                       | Rolling strategy: Infinite, Year, Month, Day, Hour, Minute                       |
+| `File.FileSizeLimitBytes`             | long?          | 10MB (10485760)           | Max file size before rolling                                                     |
+| `File.RetainedFileCountLimit`         | int?           | 31                        | Number of old files to keep                                                      |
+| `CloudWatch.Enabled`                  | bool           | false                     | Enable CloudWatch Logs integration                                               |
+| `CloudWatch.MinimumLevel`             | LogEventLevel? | null (global)             | CloudWatch-specific log level (overrides global MinimumLevel if set)             |
+| `CloudWatch.TextFormatter`            | string         | compact                   | Text formatter: "json", "compact" (recommended), "rendered-compact"              |
+| `CloudWatch.LogGroup`                 | string         | (empty)                   | CloudWatch log group name (required when enabled, 1-256 characters)              |
+| `CloudWatch.CreateLogGroup`           | bool           | false                     | Whether to create the log group if it doesn't exist                              |
+| `CloudWatch.LogStreamPrefix`          | string         | (empty)                   | Prefix for log stream names (optional)                                           |
+| `CloudWatch.Region`                   | string         | (empty)                   | AWS region (required when enabled, e.g., us-east-1, eu-west-1)                   |
+| `CloudWatch.AccessKeyId`              | string         | (empty)                   | AWS Access Key ID (optional, uses default credential chain if empty)             |
+| `CloudWatch.SecretKey`                | string         | (empty)                   | AWS Secret Access Key (required if AccessKeyId is set)                           |
+| `CloudWatch.BatchSizeLimit`           | int            | 100                       | Events per batch to CloudWatch (1-1000, AWS limit)                               |
+| `CloudWatch.PeriodSeconds`            | int            | 5                         | Flush interval to CloudWatch in seconds (1-300)                                  |
+| `CloudWatch.LogStreamNamingStrategy`  | string         | configurable              | Log stream naming strategy: "default", "constant", "configurable"                |
+| `CloudWatch.LogStreamIncludeHostname` | bool           | true                      | Include hostname in log stream name (for "configurable" strategy)                |
+| `CloudWatch.LogStreamIncludeGuid`     | bool           | true                      | Include GUID in log stream name (for "configurable" strategy)                    |
+| `CloudWatch.QueueSizeLimit`           | int            | 10000                     | Maximum queue size before dropping events (100-100000)                           |
+| `CloudWatch.RetryAttempts`            | byte           | 5                         | Number of retry attempts for failed uploads (0-255)                              |
+| `Diagnostics.ThrottleWindowSeconds`   | int            | 300                       | Time window in seconds for throttling Serilog internal errors (must be positive) |
+| `Diagnostics.ThrottleLimit`           | int            | 100                       | Max internal error messages per window (0 = disable diagnostic output)           |
+| `Diagnostics.Console.Enabled`         | bool           | false                     | Enable internal diagnostic logging to Console                                    |
+| `Diagnostics.File.Enabled`            | bool           | false                     | Enable internal diagnostic logging to a file                                     |
+| `Diagnostics.File.Path`               | string         | logs/serilog-internal.log | Path for internal diagnostic logs                                                |
 
 ---
 
@@ -138,14 +180,20 @@ Provide credentials directly in configuration:
 {
   "CloudWatch": {
     "Enabled": true,
-    "Region": "us-east-1",
+    "MinimumLevel": "Warning",
+    "TextFormatter": "compact",
     "LogGroup": "/production/mt5bridge",
     "LogStreamPrefix": "app-",
-    "UseJson": true,
+    "Region": "us-east-1",
     "AccessKeyId": "YOUR_ACCESS_KEY_ID_HERE",
     "SecretKey": "YOUR_SECRET_KEY_HERE",
     "BatchSizeLimit": 100,
-    "PeriodSeconds": 5
+    "PeriodSeconds": 5,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```
@@ -163,14 +211,20 @@ Leave `AccessKeyId` and `SecretKey` empty to use AWS default credential chain:
 {
   "CloudWatch": {
     "Enabled": true,
-    "Region": "us-east-1",
+    "MinimumLevel": "Warning",
+    "TextFormatter": "compact",
     "LogGroup": "/production/mt5bridge",
     "LogStreamPrefix": "app-",
-    "UseJson": true,
+    "Region": "us-east-1",
     "AccessKeyId": "",
     "SecretKey": "",
     "BatchSizeLimit": 100,
-    "PeriodSeconds": 5
+    "PeriodSeconds": 5,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```
@@ -188,118 +242,332 @@ The SDK will automatically search for credentials in this order:
 
 ---
 
+### Per-Sink Log Level Configuration
+
+Each sink (Console, File, CloudWatch) can have its own minimum log level, allowing fine-grained control over what gets logged where.
+
+#### Configuration Strategy
+
+**Global MinimumLevel**: Acts as the first filter - log events below this level are never created.
+
+**Sink-specific MinimumLevel**: Optional override for each sink. If not set (null), the sink uses the global level.
+
+#### Example: Production Multi-Level Logging
+
+```json
+{
+  "MinimumLevel": "Debug",  // Create all Debug+ events
+  "Console": {
+    "Enabled": true,
+    "TextFormatter": "plain",
+    "MinimumLevel": "Information"  // Console only shows Information+
+  },
+  "File": {
+    "Enabled": true,
+    "Path": "logs/app-.log",
+    "TextFormatter": "plain",
+    "MinimumLevel": "Debug"  // File captures everything (Debug+)
+  },
+  "CloudWatch": {
+    "Enabled": true,
+    "Region": "us-east-1",
+    "LogGroup": "/production/mt5bridge",
+    "MinimumLevel": "Warning",  // CloudWatch only stores Warning+ (cost optimization)
+    "BatchSizeLimit": 500,
+    "PeriodSeconds": 10
+  }
+}
+```
+
+#### Use Cases
+
+**Development**: Console=Debug, File=Verbose, CloudWatch=Disabled
+```json
+{
+  "MinimumLevel": "Verbose",
+  "Console": { "Enabled": true, "MinimumLevel": "Debug" },
+  "File": { "Enabled": true, "MinimumLevel": "Verbose" },
+  "CloudWatch": { "Enabled": false }
+}
+```
+
+**Production**: Console=Information, File=Debug, CloudWatch=Warning
+```json
+{
+  "MinimumLevel": "Debug",
+  "Console": { "Enabled": true, "MinimumLevel": "Information" },
+  "File": { "Enabled": true, "MinimumLevel": "Debug" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Warning" }
+}
+```
+
+**Troubleshooting**: Console=Debug, File=Verbose, CloudWatch=Debug
+```json
+{
+  "MinimumLevel": "Verbose",
+  "Console": { "Enabled": true, "MinimumLevel": "Debug" },
+  "File": { "Enabled": true, "MinimumLevel": "Verbose" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Debug" }
+}
+```
+
+**Benefits**:
+- **Cost Optimization**: Send only critical logs to CloudWatch (Warning+) while File captures Debug
+- **Performance**: Reduce console noise (Information+) while preserving detailed logs in files
+- **Flexibility**: Different environments can have different logging strategies without code changes
+
+---
+
+### CloudWatch Advanced Configuration
+
+#### Log Stream Naming Strategies
+
+The library provides three strategies for naming CloudWatch log streams:
+
+**1. Default Strategy** (`"default"`)
+- Format: `{DateTime}_{HostName}_{Guid}`
+- Example: `2025-12-26-14-30-45_PRODSERVER_a1b2c3d4-e5f6-...`
+- Use case: When you need full traceability with timestamp and host
+
+**2. Constant Strategy** (`"constant"`)
+- Format: `{LogStreamPrefix}_{Guid}`
+- Example: `app-server_a1b2c3d4-e5f6-...`
+- Use case: Simple naming with unique identifier
+
+**3. Configurable Strategy** (`"configurable"`) ⭐ Recommended
+- Format: `{LogStreamPrefix}/[hostname]/[guid]` (based on Include flags)
+- Examples:
+  - All enabled: `app-server/PRODSERVER/a1b2c3d4-e5f6-...`
+  - Only prefix: `app-server`
+  - Prefix + hostname: `app-server/PRODSERVER`
+- Use case: Flexible naming for different deployment scenarios
+
+#### Text Formatters
+
+The library supports three JSON formatters with different trade-offs:
+
+**1. JSON Formatter** (`"json"`)
+- Standard Serilog JSON format
+- Size: 292 bytes (baseline)
+- Performance: Baseline
+- Use case: When you need standard JSON format
+
+**2. Compact JSON Formatter** (`"compact"`) ⭐ Recommended
+- CompactJsonFormatter from Serilog.Formatting.Compact
+- Size: 187 bytes (36% smaller than standard)
+- Performance: 1.89x faster than standard
+- Preserves message templates with `@mt` field
+- **Log level behavior**:
+  * Information logs: Omits `@l` field (for size optimization)
+  * Other levels: Includes `@l` field (Verbose, Debug, Warning, Error, Fatal)
+  * **Solution**: LogLevelEnricher adds `"l"` field with u3 format (VRB/DBG/INF/WRN/ERR/FTL) to all levels
+- Use case: Production environments requiring optimal performance
+
+**3. Rendered Compact JSON Formatter** (`"rendered-compact"`)
+- Pre-renders message templates
+- Includes both `@mt` (template) and `@r` (rendered message)
+- Includes `@i` (event ID) for correlation
+- **Same log level behavior as compact formatter** (uses LogLevelEnricher)
+- Use case: When you need both structured and human-readable messages
+
+#### Queue and Retry Configuration
+
+**QueueSizeLimit** (default: 10000)
+- Maximum number of log events buffered in memory
+- When queue is full, new events are **dropped** (not blocked)
+- Range: 100-100000
+- Recommendation: Increase for high-throughput systems (20000-50000)
+
+**RetryAttempts** (default: 5)
+- Number of retry attempts for failed CloudWatch API calls
+- Range: 0-255
+- Recommendation: Keep default (5) for most scenarios
+
+#### Log Level Enricher
+
+**Automatic Level Field Addition**
+
+When using `compact` or `rendered-compact` formatters, the library automatically adds a `LogLevelEnricher` that includes a short-form log level field (`"l"`) in all log events:
+
+```json
+// Information level (without enricher)
+{"@t":"2025-12-27T06:00:00.000Z","@mt":"User logged in",...}
+
+// Information level (with enricher)
+{"@t":"2025-12-27T06:00:00.000Z","@mt":"User logged in","l":"INF",...}
+
+// Warning level (has both @l and l)
+{"@t":"2025-12-27T06:00:00.000Z","@mt":"Retry attempt","@l":"Warning","l":"WRN",...}
+```
+
+**Level Abbreviations (u3 format)**:
+- `VRB` - Verbose
+- `DBG` - Debug
+- `INF` - Information
+- `WRN` - Warning
+- `ERR` - Error
+- `FTL` - Fatal
+
+**Benefits**:
+- ✅ Consistent level field across all log levels
+- ✅ Compact 3-letter format saves bandwidth
+- ✅ Easy filtering in log aggregation systems (e.g., `l:INF OR l:WRN`)
+- ✅ Automatic activation when compact formatters are used
+
+---
+
 ### Usage Patterns
 
-#### 1. Basic Logging
+#### 1. Standard Structured Logging (Recommended)
 
 ```csharp
 var logger = SerilogBootstrapper.CreateLogger(config);
 
+// Simple messages
 logger.Information("Application started");
 logger.Warning("Configuration incomplete");
 logger.Error(ex, "Operation failed");
+
+// Structured data with Serilog's native template syntax
+logger.Information("Deal executed: {DealId} {Symbol} {Action} {Volume}@{Price}",
+    deal.Deal, deal.Symbol, deal.Action, deal.Volume, deal.Price);
+
+logger.Warning("High latency: {LatencyMs}ms for {Symbol} at {Timestamp}",
+    latency, symbol, DateTime.UtcNow);
+
+logger.Error(ex, "Trade failed: {DealId} {Symbol} {ErrorCode}",
+    dealId, symbol, errorCode);
 ```
 
-#### 2. Structured Logging with Models (High Performance)
+**Why This Works**:
+- ✅ Zero reflection - Serilog compiles property extraction
+- ✅ Minimal allocations - direct parameter passing
+- ✅ Type-safe - compile-time checking
+- ✅ JSON-friendly - outputs structured data to all sinks
+
+#### 2. Complex Objects
 
 ```csharp
-// Single model - lazy evaluation (recommended for high-frequency)
-logger.WithModelLazy("Trade", deal, LogEventLevel.Information)
-      .Information("Trade executed");
+// Serilog automatically serializes objects using destructuring
+logger.Information("User action: {@User} {@Action}",
+    user,      // @ prefix for destructuring (full object serialization)
+    action);
 
-// For Debug logs when Debug is disabled: NO serialization cost!
-logger.WithModelLazy("Deal", deal, LogEventLevel.Debug)
-      .Debug("Detailed transaction data");
+// Output to JSON sink:
+// {
+//   "User": { "Id": 123, "Name": "John", "Email": "john@example.com" },
+//   "Action": { "Type": "Login", "Timestamp": "2025-12-27T10:30:00Z" }
+// }
 ```
 
-#### 3. Fluent API (Zap-like)
+#### 3. Performance-Critical Logging
 
 ```csharp
-logger.WithModel("User", user, FastJsonContext.Default.UserModel)
-      .WithModel("Account", account, FastJsonContext.Default.AccountModel)
-      .WithField("Operation", "Transfer")
-      .WithField("Amount", 1000.50)
-      .WithField("Status", "Success")
-      .Information("Complex transaction completed");
+// For high-frequency logging, check log level first
+if (logger.IsEnabled(LogEventLevel.Debug))
+{
+    logger.Debug("High-frequency tick: {Symbol} {Bid} {Ask}",
+        symbol, bid, ask);
+}
+
+// Or use Serilog's built-in lazy evaluation with message templates
+logger.Debug("Expensive operation: {Data}",
+    new { Result = ExpensiveComputation() });  // Only evaluated if Debug is enabled
 ```
 
-#### 4. ModelLogger Wrapper (Recommended)
+#### 4. Error Logging with Context
 
 ```csharp
-// Create once, reuse many times
-var modelLogger = new ModelLogger(logger, LogEventLevel.Information);
-modelLogger.Context = ReadableJsonContext.Default;
-
-// Clean, simple API
-modelLogger.WithModel("Deal", deal)
-           .WithModel("Account", account)
-           .WithField("Source", "MT5")
-           .Write("Position opened");
-
-// Change level per-call
-modelLogger.WithLevel(LogEventLevel.Debug)
-           .WithModel("Details", debugData)
-           .Write("Debug information");
+try
+{
+    ProcessTrade(deal);
+}
+catch (Exception ex)
+{
+    logger.Error(ex, "Trade processing failed: {DealId} {Symbol} {Volume} {Reason}",
+        deal.Deal, deal.Symbol, deal.Volume, "ValidationError");
+}
 ```
 
-#### 5. Direct JSON (Highest Performance)
+#### 5. Batch Operations
 
 ```csharp
-// Avoid Dictionary allocation - write JSON directly
-logger.WithModelDirectLazy("Deal", deal, LogEventLevel.Information)
-      .Information("High-frequency trade");
-```
+var stopwatch = Stopwatch.StartNew();
+ProcessBatch(deals);
+stopwatch.Stop();
 
-#### 6. Convenience Methods
-
-```csharp
-logger.LogModelInfo("Trade processed", deal, FastJsonContext.Default.DealModel);
-logger.LogModelDebug("Debug data", data, FastJsonContext.Default.DataModel);
-logger.LogModelError("Error details", errorObj, FastJsonContext.Default.ErrorModel, ex);
+logger.Information("Batch processed: {TotalDeals} deals in {DurationMs}ms, avg {AvgMs}ms/deal",
+    deals.Count, stopwatch.ElapsedMilliseconds, stopwatch.ElapsedMilliseconds / (double)deals.Count);
 ```
 
 ---
 
-### Global Configuration
+### Best Practices
 
-Set a global default JSON serialization context to avoid passing it everywhere:
+#### 1. Use Structured Logging Everywhere
 
 ```csharp
-// In Program.cs or startup code
-LoggerExtensions.DefaultContext = ReadableJsonContext.Default;
+// ❌ Bad - string concatenation, not searchable
+logger.Information($"User {userId} logged in from {ipAddress}");
 
-// Now you can use simpler overloads
-logger.WithModel("Deal", deal).Information("Processed");
-
-// ModelLogger automatically uses the default context
-var modelLogger = new ModelLogger(logger);  // ✅ No context needed
-modelLogger.WithModel("User", user).Write("Logged in");
+// ✅ Good - structured data, searchable in CloudWatch/ELK
+logger.Information("User login: {UserId} from {IpAddress}",
+    userId, ipAddress);
 ```
 
-**Note**: Two context types:
-- **FastJsonContext**: Numbers as numbers (more compact, faster)
-- **ReadableJsonContext**: Enums as strings, better for human reading
+#### 2. Use Meaningful Property Names
 
----
+```csharp
+// ❌ Bad - generic names
+logger.Information("Processing: {Id} {Value}", dealId, price);
 
-### Performance Optimization
+// ✅ Good - specific, searchable names
+logger.Information("Deal processing: {DealId} {Price}", dealId, price);
+```
 
-#### Choose the Right Method
+#### 3. Destructure Complex Objects
 
-| Scenario                                | Method                | Performance   | GC Impact |
-| --------------------------------------- | --------------------- | ------------- | --------- |
-| High-frequency logs with Debug disabled | `WithModelLazy`       | ⭐⭐⭐⭐⭐ (5000x) | Zero      |
-| Structured data with Dictionary         | `WithModel`           | ⭐⭐⭐⭐          | Low       |
-| Ultra-high frequency (10k+/sec)         | `WithModelDirectLazy` | ⭐⭐⭐⭐⭐         | Zero      |
-| Simple fields only                      | `WithField`           | ⭐⭐⭐⭐          | Minimal   |
+```csharp
+// Use @ prefix to destructure objects into structured data
+logger.Information("Order created: {@Order}", order);
 
-#### Tips
+// Output: { "Order": { "Id": 123, "Symbol": "EURUSD", "Volume": 1.5 } }
+```
 
-1. **Always use Lazy variants for Debug/Verbose logs** - when they're disabled, there's ZERO cost
-2. **Use ModelLogger in hot loops** - reduces parameter passing overhead
-3. **Set `MinimumLevel` to Information or higher in production** - disables expensive serialization
-4. **Use Direct variants for ultra-high frequency** - avoids Dictionary allocation
-5. **CloudWatch tuning for high-throughput**: Increase `BatchSizeLimit` to 800-1000, increase `PeriodSeconds` to 10-15
+#### 4. Per-Environment Configuration
+
+**Development**: Verbose console output
+```json
+{
+  "MinimumLevel": "Debug",
+  "Console": { "Enabled": true, "TextFormatter": "plain" },
+  "File": { "Enabled": true, "MinimumLevel": "Verbose" },
+  "CloudWatch": { "Enabled": false }
+}
+```
+
+**Production**: Minimal console, full file logs, critical CloudWatch
+```json
+{
+  "MinimumLevel": "Information",
+  "Console": { "Enabled": true, "MinimumLevel": "Warning" },
+  "File": { "Enabled": true, "TextFormatter": "json" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Warning", "TextFormatter": "compact" }
+}
+```
+
+#### 5. Performance Considerations
+
+```csharp
+// For high-frequency logging, check level first
+if (logger.IsEnabled(LogEventLevel.Debug))
+{
+    logger.Debug("Tick: {Symbol} {Bid}/{Ask}", symbol, bid, ask);
+}
+
+// Serilog's lazy evaluation works automatically with message templates
+logger.Debug("Data: {ComplexData}", GetComplexData());  // Only called if Debug enabled
+```
 
 ---
 
@@ -390,64 +658,73 @@ await Task.WhenAll(tasks);
 <a name="chinese"></a>
 
 ## 中文文档
-MT5Bridge 的企业级 Serilog 日志实现，提供高性能、线程安全、生产就绪的日志基础设施。
 
-**状态**: ✅ 生产就绪 | **质量**: ⭐⭐⭐⭐⭐ (5/5) | **版本**: 2.0
+MT5Bridge 的企业级 Serilog 配置库，提供生产就绪的日志基础设施。
 
 ### 🚀 核心特性
 
-#### 高性能
-- **零反射序列化**：使用 .NET 8 Source-Generated JSON，零 GC 开销
-- **惰性计算**：日志级别关闭时性能提升 5000 倍（完全跳过序列化）
-- **直接 JSON 写入**：`WithModelDirect` 避免中间 Dictionary 分配
-- **递归结构支持**：支持无限层级的复杂嵌套对象
+#### Serilog 原生体验
+- **直接使用 Serilog**：零抽象开销，使用 Serilog 原生的结构化日志
+- **零反射**：Serilog 内置模板语法提供零反射性能
+- **最小分配**：直接参数传递，无中间对象或字典
+- **类型安全**：编译时检查日志参数类型
 
 #### 企业级架构
 - **多种 Sink**：Console（支持 ANSI 颜色）、滚动文件（按日期/大小）、AWS CloudWatch
-- **流式 API**：类似 Zap 的链式调用，代码简洁易读
+- **灵活配置**：基于 JSON 的配置，带验证和默认值
 - **完整验证**：启动时验证所有配置，自动创建目录
-- **线程安全**：双重检查锁定保护 AWS 客户端，支持并发访问
+- **线程安全**：安全的并发日志访问
 
 #### 健壮可靠
 - **严格配置验证**：空值检查、参数范围、路径有效性、AWS 区域验证
 - **资源管理**：`FlushAndCloseAsync()` 优雅关闭，防止日志丢失
 - **异常恢复**：清晰的错误消息，每层级完整的异常处理
-- **ModelLogger 包装**：减少参数传递，绑定 Logger + Level + Context
+- **独立 Sink 日志级别**：Console、File、CloudWatch 可独立控制日志级别
 
 #### 📖 完整文档
-- 从基础到高级的使用模式
-- 性能调优建议
-- MT5 交易系统最佳实践
+- 结构化日志最佳实践
+- 性能优化建议
+- 多 Sink 配置模式
 
 ---
 
 ### 快速开始
 
 ```csharp
-// 1. Load configuration from appsettings.json
-var config = new ConfigurationBuilder()
+// 1. 从 appsettings.json 加载配置
+var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
     .Build();
-var serilogConfig = config.GetSection("Logging").Get<SerilogConfig>()
-    ?? throw new InvalidOperationException("Logging config not found");
 
-// 2. Create logger (validates all config at startup)
+var serilogConfig = new SerilogConfig();
+configuration.Bind(serilogConfig);
+
+// 2. 创建 logger
 var logger = SerilogBootstrapper.CreateLogger(serilogConfig);
 
-// 3. Set global context for convenience (optional)
-LoggerExtensions.DefaultContext = ReadableJsonContext.Default;
+// 3. 使用 Serilog 原生的结构化日志
+logger.Information("交易执行: {DealId} {Symbol} {Action} {Volume}@{Price}",
+    deal.Deal, deal.Symbol, deal.Action, deal.Volume, deal.Price);
 
-// 4. Log with high performance - lazy evaluation!
-logger.WithModelLazy("Deal", deal, LogEventLevel.Information)
-      .Information("Trade executed");
+logger.Warning("高延迟检测: {Symbol} 延迟 {LatencyMs}ms",
+    symbol, latency);
 
-// 5. Shutdown gracefully to flush all logs
+logger.Error(ex, "交易失败: {DealId} {Symbol}",
+    dealId, symbol);
+
+// 4. 优雅关闭以刷新所有日志
 await SerilogBootstrapper.FlushAndCloseAsync();
 ```
 
----
+**为什么使用直接 Serilog？**
+- ✅ 零反射（Serilog 使用编译表达式）
+- ✅ 最小分配（无中间对象）
+- ✅ 类型安全（编译时检查）
+- ✅ JSON 输出支持（所有 sink 都可使用 JSON 格式化器）
+- ✅ 社区标准（广泛理解的模式）
 
-### 配置
+---
+置
 
 #### 完整配置示例
 
@@ -457,7 +734,7 @@ await SerilogBootstrapper.FlushAndCloseAsync();
     "MinimumLevel": "Information",
     "Console": {
       "Enabled": true,
-      "UseJson": true,
+      "TextFormatter": "plain",
       "UseAnsiColors": false
     },
     "File": {
@@ -466,46 +743,76 @@ await SerilogBootstrapper.FlushAndCloseAsync();
       "RollingInterval": "Day",
       "FileSizeLimitBytes": 104857600,
       "RetainedFileCountLimit": 30,
-      "UseJson": true
+      "TextFormatter": "plain"
     },
     "CloudWatch": {
       "Enabled": false,
       "Region": "us-east-1",
       "LogGroup": "/production/mt5bridge",
       "LogStreamPrefix": "app-",
-      "UseJson": true,
+      "TextFormatter": "compact",
       "AccessKeyId": "",
       "SecretKey": "",
       "BatchSizeLimit": 500,
-      "PeriodSeconds": 5
-    }
+      "PeriodSeconds": 5,
+      "LogStreamNamingStrategy": "configurable",
+      "LogStreamIncludeHostname": true,
+      "LogStreamIncludeGuid": true,
+      "QueueSizeLimit": 10000,
+      "RetryAttempts": 5
+    },
+    "Diagnostics": {
+      "ThrottleWindowSeconds": 300,
+      "ThrottleLimit": 100,
+      "Console": {
+        "Enabled": false
+      },
+      "File": {
+        "Enabled": false,
+        "Path": "logs/serilog-internal.log"
+      }
+    }    
   }
 }
 ```
 
 #### 配置说明
 
-| 选项                          | 类型          | 默认值        | 说明                                                             |
-| ----------------------------- | ------------- | ------------- | ---------------------------------------------------------------- |
-| `MinimumLevel`                | LogEventLevel | Information   | 最小日志级别：Verbose, Debug, Information, Warning, Error, Fatal |
-| `Console.Enabled`             | bool          | true          | 启用控制台输出                                                   |
-| `Console.UseJson`             | bool          | false         | 输出为 JSON (true) 或纯文本 (false)                              |
-| `Console.UseAnsiColors`       | bool          | true          | 使用 ANSI 颜色（容器环境设为 false）                             |
-| `File.Enabled`                | bool          | false         | 启用文件日志                                                     |
-| `File.Path`                   | string        | logs/log-.txt | 文件路径模式（自动创建目录）                                     |
-| `File.RollingInterval`        | string        | Day           | 滚动策略：Infinite, Year, Month, Day, Hour, Minute               |
-| `File.FileSizeLimitBytes`     | long?         | 10MB          | 文件大小超过此值时滚动                                           |
-| `File.RetainedFileCountLimit` | int?          | 31            | 保留的旧日志文件数                                               |
-| `File.UseJson`                | bool          | true          | 文件输出格式（JSON 或纯文本）                                    |
-| `CloudWatch.Enabled`          | bool          | false         | 启用 CloudWatch 日志                                             |
-| `CloudWatch.Region`           | string        | us-east-1     | AWS 区域                                                         |
-| `CloudWatch.LogGroup`         | string        | MT5Bridge     | CloudWatch 日志组名称                                            |
-| `CloudWatch.LogStreamPrefix`  | string        | Demo          | 日志流名称前缀                                                   |
-| `CloudWatch.UseJson`          | bool          | true          | CloudWatch 输出格式（JSON 或纯文本）                             |
-| `CloudWatch.AccessKeyId`      | string        | (空)          | AWS 访问密钥 ID（可选，留空则使用默认凭证链）                    |
-| `CloudWatch.SecretKey`        | string        | (空)          | AWS 密钥（若设置 AccessKeyId 则必须提供）                        |
-| `CloudWatch.BatchSizeLimit`   | int           | 100           | 批量发送的事件数 (1-1000)                                        |
-| `CloudWatch.PeriodSeconds`    | int           | 5             | 刷新到 CloudWatch 的间隔秒数 (1-300)                             |
+| 选项                                  | 类型           | 默认值                    | 说明                                                                |
+| ------------------------------------- | -------------- | ------------------------- | ------------------------------------------------------------------- |
+| `MinimumLevel`                        | LogEventLevel  | Information               | 最小日志级别：Verbose, Debug, Information, Warning, Error, Fatal    |
+| `Console.Enabled`                     | bool           | true                      | 启用控制台输出                                                      |
+| `Console.TextFormatter`               | string         | "" (纯文本)               | 格式：纯文本（"plain" 或空），"json"、"compact"、"rendered-compact" |
+| `Console.UseAnsiColors`               | bool           | true                      | 使用 ANSI 颜色（容器环境设为 false）                                |
+| `Console.MinimumLevel`                | LogEventLevel? | null (全局)               | Console 专属日志级别（覆盖全局 MinimumLevel）                       |
+| `File.Enabled`                        | bool           | false                     | 启用文件日志                                                        |
+| `File.Path`                           | string         | logs/log-.txt             | 文件路径模式（自动创建目录）                                        |
+| `File.RollingInterval`                | string         | Day                       | 滚动策略：Infinite, Year, Month, Day, Hour, Minute                  |
+| `File.FileSizeLimitBytes`             | long?          | 10MB                      | 文件大小超过此值时滚动                                              |
+| `File.RetainedFileCountLimit`         | int?           | 31                        | 保留的旧日志文件数                                                  |
+| `File.TextFormatter`                  | string         | "" (纯文本)               | 格式：纯文本（"plain" 或空），"json"、"compact"、"rendered-compact" |
+| `File.MinimumLevel`                   | LogEventLevel? | null (全局)               | File 专属日志级别（覆盖全局 MinimumLevel）                          |
+| `CloudWatch.Enabled`                  | bool           | false                     | 启用 CloudWatch 日志                                                |
+| `CloudWatch.Region`                   | string         | (空)                      | AWS 区域（启用时必填，如 us-east-1, eu-west-1）                     |
+| `CloudWatch.LogGroup`                 | string         | (空)                      | CloudWatch 日志组名称（启用时必填，1-256 字符）                     |
+| `CloudWatch.CreateLogGroup`           | bool           | false                     | 是否在日志组不存在时自动创建                                        |
+| `CloudWatch.LogStreamPrefix`          | string         | (空)                      | 日志流名称前缀（可选）                                              |
+| `CloudWatch.AccessKeyId`              | string         | (空)                      | AWS 访问密钥 ID（可选，留空则使用默认凭证链）                       |
+| `CloudWatch.SecretKey`                | string         | (空)                      | AWS 密钥（若设置 AccessKeyId 则必须提供）                           |
+| `CloudWatch.BatchSizeLimit`           | int            | 100                       | 批量发送的事件数 (1-1000)                                           |
+| `CloudWatch.PeriodSeconds`            | int            | 5                         | 刷新到 CloudWatch 的间隔秒数 (1-300)                                |
+| `CloudWatch.LogStreamNamingStrategy`  | string         | configurable              | 日志流命名策略："default"、"constant"、"configurable"               |
+| `CloudWatch.LogStreamIncludeHostname` | bool           | true                      | 日志流名称中包含主机名（"configurable" 策略）                       |
+| `CloudWatch.LogStreamIncludeGuid`     | bool           | true                      | 日志流名称中包含 GUID（"configurable" 策略）                        |
+| `CloudWatch.TextFormatter`            | string         | compact                   | 文本格式化器："json"、"compact"（推荐）、"rendered-compact"         |
+| `CloudWatch.QueueSizeLimit`           | int            | 10000                     | 队列满时丢弃事件的最大队列大小 (100-100000)                         |
+| `CloudWatch.RetryAttempts`            | byte           | 5                         | 失败上传的重试次数 (0-255)                                          |
+| `CloudWatch.MinimumLevel`             | LogEventLevel? | null (全局)               | CloudWatch 专属日志级别（覆盖全局 MinimumLevel）                    |
+| `Diagnostics.ThrottleWindowSeconds`   | int            | 300                       | 限流时间窗口（秒），用于 Serilog 内部错误消息限流（必须为正数）     |
+| `Diagnostics.ThrottleLimit`           | int            | 100                       | 在限流窗口内允许的最大内部错误消息数量（0=禁用诊断输出）            |
+| `Diagnostics.Console.Enabled`         | bool           | false                     | 是否启用内部诊断日志输出到控制台                                    |
+| `Diagnostics.File.Enabled`            | bool           | false                     | 是否启用内部诊断日志输出到文件                                      |
+| `Diagnostics.File.Path`               | string         | logs/serilog-internal.log | 内部诊断日志的文件路径                                              |
 
 ---
 
@@ -524,11 +831,16 @@ await SerilogBootstrapper.FlushAndCloseAsync();
     "Region": "us-east-1",
     "LogGroup": "/production/mt5bridge",
     "LogStreamPrefix": "app-",
-    "UseJson": true,
     "AccessKeyId": "YOUR_ACCESS_KEY_ID_HERE",
     "SecretKey": "YOUR_SECRET_KEY_HERE",
     "BatchSizeLimit": 100,
-    "PeriodSeconds": 5
+    "PeriodSeconds": 5,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "TextFormatter": "compact",
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```
@@ -548,10 +860,17 @@ await SerilogBootstrapper.FlushAndCloseAsync();
     "Enabled": true,
     "Region": "us-east-1",
     "LogGroup": "/production/mt5bridge",
-    "LogStreamPrefix": "app-",    "UseJson": true,    "AccessKeyId": "",
+    "LogStreamPrefix": "app-",
+    "AccessKeyId": "",
     "SecretKey": "",
     "BatchSizeLimit": 100,
-    "PeriodSeconds": 5
+    "PeriodSeconds": 5,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "TextFormatter": "compact",
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```
@@ -569,118 +888,378 @@ SDK 将按以下顺序自动搜索凭证：
 
 ---
 
+### 每个 Sink 的独立日志级别配置
+
+每个 sink（Console、File、CloudWatch）可以拥有自己的最小日志级别，实现对不同输出目标的精细控制。
+
+#### 配置策略
+
+**全局 MinimumLevel**：作为第一道过滤器 - 低于此级别的日志事件永远不会被创建。
+
+**Sink 专属 MinimumLevel**：每个 sink 的可选覆盖级别。如果未设置（null），sink 使用全局级别。
+
+#### 示例：生产环境多级别日志
+
+```json
+{
+  "MinimumLevel": "Debug",  // 创建所有 Debug+ 事件
+  "Console": {
+    "Enabled": true,
+    "TextFormatter": "plain",
+    "MinimumLevel": "Information"  // Console 仅显示 Information+
+  },
+  "File": {
+    "Enabled": true,
+    "Path": "logs/app-.log",
+    "TextFormatter": "plain",
+    "MinimumLevel": "Debug"  // File 捕获所有内容（Debug+）
+  },
+  "CloudWatch": {
+    "Enabled": true,
+    "Region": "us-east-1",
+    "LogGroup": "/production/mt5bridge",
+    "MinimumLevel": "Warning",  // CloudWatch 仅存储 Warning+（成本优化）
+    "BatchSizeLimit": 500,
+    "PeriodSeconds": 10
+  }
+}
+```
+
+#### 使用场景
+
+**开发环境**：Console=Debug, File=Verbose, CloudWatch=禁用
+```json
+{
+  "MinimumLevel": "Verbose",
+  "Console": { "Enabled": true, "MinimumLevel": "Debug" },
+  "File": { "Enabled": true, "MinimumLevel": "Verbose" },
+  "CloudWatch": { "Enabled": false }
+}
+```
+
+**生产环境**：Console=Information, File=Debug, CloudWatch=Warning
+```json
+{
+  "MinimumLevel": "Debug",
+  "Console": { "Enabled": true, "MinimumLevel": "Information" },
+  "File": { "Enabled": true, "MinimumLevel": "Debug" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Warning" }
+}
+```
+
+**故障排查**：Console=Debug, File=Verbose, CloudWatch=Debug
+```json
+{
+  "MinimumLevel": "Verbose",
+  "Console": { "Enabled": true, "MinimumLevel": "Debug" },
+  "File": { "Enabled": true, "MinimumLevel": "Verbose" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Debug" }
+}
+```
+
+**优势**：
+- **成本优化**：仅将关键日志发送到 CloudWatch（Warning+），而 File 捕获 Debug
+- **性能优化**：减少控制台噪音（Information+），同时保留文件中的详细日志
+- **灵活性**：不同环境可以拥有不同的日志策略，无需修改代码
+
+---
+
+### CloudWatch 高级配置
+
+#### 日志流命名策略
+
+本库提供三种 CloudWatch 日志流命名策略：
+
+**1. Default 策略** (`"default"`)
+- 格式：`{DateTime}_{HostName}_{Guid}`
+- 示例：`2025-12-26-14-30-45_PRODSERVER_a1b2c3d4-e5f6-...`
+- 使用场景：需要完整的时间戳和主机名追溯
+
+**2. Constant 策略** (`"constant"`)
+- 格式：`{LogStreamPrefix}_{Guid}`
+- 示例：`app-server_a1b2c3d4-e5f6-...`
+- 使用场景：简单命名 + 唯一标识符
+
+**3. Configurable 策略** (`"configurable"`) ⭐ 推荐
+- 格式：`{LogStreamPrefix}/[hostname]/[guid]`（基于 Include 标志）
+- 示例：
+  - 全部启用：`app-server/PRODSERVER/a1b2c3d4-e5f6-...`
+  - 仅前缀：`app-server`
+  - 前缀 + 主机名：`app-server/PRODSERVER`
+- 使用场景：灵活命名，适应不同部署场景
+
+#### 文本格式化器
+
+本库支持三种 JSON 格式化器，各有不同的性能特点：
+
+**1. JSON Formatter** (`"json"`)
+- 标准 Serilog JSON 格式
+- 大小：292 字节（基准）
+- 性能：基准
+- 使用场景：需要标准 JSON 格式时
+
+**2. Compact JSON Formatter** (`"compact"`) ⭐ 推荐
+- 来自 Serilog.Formatting.Compact
+- 大小：187 字节（比标准小 36%）
+- 性能：比标准快 1.89 倍
+- 保留消息模板（`@mt` 字段）
+- **日志级别行为**：
+  * Information 级别：省略 `@l` 字段（优化大小）
+  * 其他级别：包含 `@l` 字段（Verbose、Debug、Warning、Error、Fatal）
+  * **解决方案**：LogLevelEnricher 为所有级别添加 `"l"` 字段（u3 格式：VRB/DBG/INF/WRN/ERR/FTL）
+- 使用场景：需要最优性能的生产环境
+
+**3. Rendered Compact JSON Formatter** (`"rendered-compact"`)
+- 预渲染消息模板
+- 同时包含 `@mt`（模板）和 `@r`（渲染后的消息）
+- 包含 `@i`（事件 ID）用于关联
+- **与 compact 格式相同的日志级别行为**（使用 LogLevelEnricher）
+- 使用场景：需要结构化和人类可读消息
+
+#### 队列和重试配置
+
+**QueueSizeLimit**（默认：10000）
+- 内存中缓冲的最大日志事件数
+- 队列满时，新事件会被**丢弃**（不会阻塞）
+- 范围：100-100000
+- 建议：高吞吐量系统增加到 20000-50000
+
+**RetryAttempts**（默认：5）
+- CloudWatch API 调用失败时的重试次数
+- 范围：0-255
+- 建议：大多数场景保持默认值（5）
+
+#### 日志级别富集器
+
+**自动添加级别字段**
+
+当使用 `compact` 或 `rendered-compact` 格式化器时，库会自动添加 `LogLevelEnricher`，在所有日志事件中包含短格式的日志级别字段（`"l"`）：
+
+```json
+// Information 级别（不使用 enricher）
+{"@t":"2025-12-27T06:00:00.000Z","@mt":"用户登录",...}
+
+// Information 级别（使用 enricher）
+{"@t":"2025-12-27T06:00:00.000Z","@mt":"用户登录","l":"INF",...}
+
+// Warning 级别（同时有 @l 和 l）
+{"@t":"2025-12-27T06:00:00.000Z","@mt":"重试尝试","@l":"Warning","l":"WRN",...}
+```
+
+**级别缩写（u3 格式）**：
+- `VRB` - Verbose
+- `DBG` - Debug
+- `INF` - Information
+- `WRN` - Warning
+- `ERR` - Error
+- `FTL` - Fatal
+
+**优势**：
+- ✅ 所有日志级别的级别字段一致
+- ✅ 3 字母紧凑格式节省带宽
+- ✅ 在日志聚合系统中易于过滤（如：`l:INF OR l:WRN`）
+- ✅ 使用 compact 格式化器时自动激活
+
+---
+
 ### 使用示例
 
-#### 1. 基础日志
+#### 1. 标准结构化日志（推荐）
 
 ```csharp
 var logger = SerilogBootstrapper.CreateLogger(config);
 
-logger.Information("Application started");
-logger.Warning("Configuration incomplete");
-logger.Error(ex, "Operation failed");
+// 简单消息
+logger.Information("应用已启动");
+logger.Warning("配置不完整");
+logger.Error(ex, "操作失败");
+
+// 使用 Serilog 原生模板语法的结构化数据
+logger.Information("交易执行: {DealId} {Symbol} {Action} {Volume}@{Price}",
+    deal.Deal, deal.Symbol, deal.Action, deal.Volume, deal.Price);
+
+logger.Warning("高延迟: {Symbol} 延迟 {LatencyMs}ms，时间 {Timestamp}",
+    symbol, latency, DateTime.UtcNow);
+
+logger.Error(ex, "交易失败: {DealId} {Symbol} {ErrorCode}",
+    dealId, symbol, errorCode);
 ```
 
-#### 2. 结构化日志（高性能）
+**为什么这样做有效**：
+- ✅ 零反射 - Serilog 编译属性提取
+- ✅ 最小分配 - 直接参数传递
+- ✅ 类型安全 - 编译时检查
+- ✅ JSON 友好 - 向所有 sink 输出结构化数据
+
+#### 2. 复杂对象
 
 ```csharp
-// Single model - lazy evaluation (recommended for high-frequency)
-logger.WithModelLazy("Trade", deal, LogEventLevel.Information)
-      .Information("Trade executed");
+// Serilog 使用解构自动序列化对象
+logger.Information("用户操作: {@User} {@Action}",
+    user,      // @ 前缀表示解构（完整对象序列化）
+    action);
 
-// For Debug logs when Debug is disabled: NO serialization cost!
-logger.WithModelLazy("Order", order, LogEventLevel.Debug)
-      .Debug("Detailed transaction data");
+// 输出到 JSON sink：
+// {
+//   "User": { "Id": 123, "Name": "张三", "Email": "zhangsan@example.com" },
+//   "Action": { "Type": "Login", "Timestamp": "2025-12-27T10:30:00Z" }
+// }
 ```
 
-#### 3. 流式 API（类似 Zap）
+#### 3. 性能关键日志
 
 ```csharp
-logger.WithModel("User", user, FastJsonContext.Default.UserModel)
-      .WithModel("Account", account, FastJsonContext.Default.AccountModel)
-      .WithField("Operation", "Transfer")
-      .WithField("Amount", 1000.50)
-      .WithField("Status", "Success")
-      .Information("Complex transaction completed");
+// 对于高频日志，先检查日志级别
+if (logger.IsEnabled(LogEventLevel.Debug))
+{
+    logger.Debug("高频 tick: {Symbol} {Bid} {Ask}",
+        symbol, bid, ask);
+}
+
+// 或使用 Serilog 内置的消息模板惰性求值
+logger.Debug("昂贵操作: {Data}",
+    new { Result = ExpensiveComputation() });  // 仅在 Debug 启用时求值
 ```
 
-#### 4. ModelLogger 包装（推荐）
+#### 4. 带上下文的错误日志
 
 ```csharp
-// Create once, reuse many times
-var modelLogger = new ModelLogger(logger, LogEventLevel.Information);
-modelLogger.Context = ReadableJsonContext.Default;
-
-// Clean, simple API
-modelLogger.WithModel("Deal", deal)
-           .WithModel("Account", account)
-           .WithField("Source", "MT5")
-           .Write("Position opened");
-
-// Change level per-call
-modelLogger.WithLevel(LogEventLevel.Debug)
-           .WithModel("Details", debugData)
-           .Write("Debug information");
+try
+{
+    ProcessTrade(deal);
+}
+catch (Exception ex)
+{
+    logger.Error(ex, "交易处理失败: {DealId} {Symbol} {Volume} {Reason}",
+        deal.Deal, deal.Symbol, deal.Volume, "ValidationError");
+}
 ```
 
-#### 5. 直接 JSON（最高性能）
+#### 5. 批量操作
 
 ```csharp
-// Avoid Dictionary allocation - write JSON directly
-logger.WithModelDirectLazy("Deal", deal, LogEventLevel.Information)
-      .Information("High-frequency trade");
-```
+var stopwatch = Stopwatch.StartNew();
+ProcessBatch(deals);
+stopwatch.Stop();
 
-#### 6. 便利方法
-
-```csharp
-logger.LogModelInfo("Trade processed", deal, FastJsonContext.Default.DealModel);
-logger.LogModelDebug("Debug data", data, FastJsonContext.Default.DataModel);
-logger.LogModelError("Error details", errorObj, FastJsonContext.Default.ErrorModel, ex);
+logger.Information("批量处理: {TotalDeals} 笔交易，耗时 {DurationMs}ms，平均 {AvgMs}ms/笔",
+    deals.Count, stopwatch.ElapsedMilliseconds, stopwatch.ElapsedMilliseconds / (double)deals.Count);
 ```
 
 ---
 
-### 全局配置
+### 最佳实践
 
-设置全局默认 JSON 序列化上下文，避免每次传递：
+#### 1. 始终使用结构化日志
 
 ```csharp
-// In Program.cs or startup code
-LoggerExtensions.DefaultContext = ReadableJsonContext.Default;
+// ❌ 不好 - 字符串拼接，不可搜索
+logger.Information($"用户 {userId} 从 {ipAddress} 登录");
 
-// Now you can use simpler overloads
-logger.WithModel("Deal", deal).Information("Processed");
-
-// ModelLogger automatically uses the default context
-var modelLogger = new ModelLogger(logger);  // ✅ No context needed
-modelLogger.WithModel("User", user).Write("Logged in");
+// ✅ 好 - 结构化数据，可在 CloudWatch/ELK 中搜索
+logger.Information("用户登录: {UserId} 来自 {IpAddress}",
+    userId, ipAddress);
 ```
 
-**注意**：两种 Context 类型：
-- **FastJsonContext**：数字为数字（更紧凑，更快）
-- **ReadableJsonContext**：枚举为字符串（便于人工阅读）
+#### 2. 使用有意义的属性名
+
+```csharp
+// ❌ 不好 - 通用名称
+logger.Information("处理中: {Id} {Value}", dealId, price);
+
+// ✅ 好 - 具体的、可搜索的名称
+logger.Information("交易处理: {DealId} {Price}", dealId, price);
+```
+
+#### 3. 解构复杂对象
+
+```csharp
+// 使用 @ 前缀将对象解构为结构化数据
+logger.Information("订单创建: {@Order}", order);
+
+// 输出: { "Order": { "Id": 123, "Symbol": "EURUSD", "Volume": 1.5 } }
+```
+
+#### 4. 不同环境的配置
+
+**开发环境**: 详细的控制台输出
+```json
+{
+  "MinimumLevel": "Debug",
+  "Console": { "Enabled": true, "TextFormatter": "plain" },
+  "File": { "Enabled": true, "MinimumLevel": "Verbose" },
+  "CloudWatch": { "Enabled": false }
+}
+```
+
+**生产环境**: 最小化控制台，完整文件日志，关键 CloudWatch
+```json
+{
+  "MinimumLevel": "Information",
+  "Console": { "Enabled": true, "MinimumLevel": "Warning" },
+  "File": { "Enabled": true, "TextFormatter": "json" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Warning", "TextFormatter": "compact" }
+}
+```
+
+#### 5. 性能考虑
+
+```csharp
+// 对于高频日志，先检查级别
+if (logger.IsEnabled(LogEventLevel.Debug))
+{
+    logger.Debug("Tick: {Symbol} {Bid}/{Ask}", symbol, bid, ask);
+}
+
+// Serilog 的惰性求值自动配合消息模板工作
+logger.Debug("数据: {ComplexData}", GetComplexData());  // 仅在 Debug 启用时调用
+```
 
 ---
 
 ### 性能优化
 
-#### 选择合适的方法
+#### Serilog 性能特点
 
-| 场景                    | 方法                  | 性能          | GC 压力 |
-| ----------------------- | --------------------- | ------------- | ------- |
-| Debug 关闭时的高频日志  | `WithModelLazy`       | ⭐⭐⭐⭐⭐ (5000x) | 零      |
-| 结构化数据 + Dictionary | `WithModel`           | ⭐⭐⭐⭐          | 低      |
-| 超高频 (10k+/sec)       | `WithModelDirectLazy` | ⭐⭐⭐⭐⭐         | 零      |
-| 简单字段                | `WithField`           | ⭐⭐⭐⭐          | 最小    |
+Serilog 的原生结构化日志已经非常高效：
 
-#### 建议
+1. **零反射**：消息模板在第一次使用时编译，后续调用直接使用编译后的表达式
+2. **最小分配**：参数直接传递，不创建中间对象
+3. **惰性求值**：日志级别关闭时，参数表达式不会被求值
+4. **高效序列化**：内置的 JSON 格式化器经过高度优化
 
-1. **Debug/Verbose 日志总是使用 Lazy 变体** - 关闭时零成本
-2. **热循环中使用 ModelLogger** - 减少参数传递开销
-3. **生产环境 MinimumLevel 设为 Information 或更高** - 禁用昂贵的序列化
-4. **超高频使用 Direct 变体** - 避免 Dictionary 分配
-5. **CloudWatch 高吞吐量调优**：BatchSizeLimit 增至 800-1000，PeriodSeconds 增至 10-15
+#### 高性能日志模式
+
+```csharp
+// ✅ 推荐：直接使用 Serilog 模板
+logger.Information("交易: {DealId} {Symbol} {Volume}@{Price}",
+    deal.Deal, deal.Symbol, deal.Volume, deal.Price);
+
+// ✅ 高频日志：先检查级别
+if (logger.IsEnabled(LogEventLevel.Debug))
+{
+    logger.Debug("Tick: {Symbol} {Bid}/{Ask}", symbol, bid, ask);
+}
+
+// ✅ 惰性求值：仅在启用时计算
+logger.Debug("详细数据: {Data}",
+    new { Result = ExpensiveComputation() });  // Debug 关闭时不调用
+```
+
+#### CloudWatch 高吞吐量调优
+
+生产环境高流量配置：
+```json
+{
+  "CloudWatch": {
+    "Enabled": true,
+    "BatchSizeLimit": 800,      // 增加批次大小
+    "PeriodSeconds": 10,         // 增加刷新间隔
+    "QueueSizeLimit": 50000,     // 增加队列大小
+    "MinimumLevel": "Warning"    // 仅记录 Warning+
+  }
+}
+```
 
 ---
 

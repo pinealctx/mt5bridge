@@ -1,4 +1,4 @@
-# MT5Bridge Logging Serilog Demo
+# MT5Bridge Serilog Performance Test Demo
 
 [English](#english) | [中文](#chinese)
 
@@ -8,67 +8,220 @@
 
 ## English Documentation
 
-Comprehensive demonstration of **MT5Bridge.Serilog** featuring high-performance structured logging for MT5 trading applications.
+Performance testing tool for **MT5Bridge.Serilog** that continuously logs comprehensive trading deal data and measures logging performance across different model types.
 
-**Status**: ✅ Production Ready | **Demo Features**: Complete | **Version**: 2.0
+**Status**: ✅ Production Ready | **Purpose**: Performance Testing & Benchmarking
 
 ## Overview
 
-This demo showcases all capabilities of the enterprise-grade Serilog logging library:
+This demo is a performance testing tool that:
+- Continuously logs comprehensive structured trading deal data (30+ fields per log)
+- Measures **pure logging performance** (excludes data generation time)
+- Tests both **POCO** and **Protobuf** model serialization performance
+- Provides detailed performance statistics with percentile analysis
 
-### Core Features Demonstrated
+### Features
 
-#### Performance & Optimization
-- **Standard Logging**: Information, Warning, Debug, Error levels with automatic context
-- **High-Performance Model Logging**: Source-generated JSON serialization with zero reflection overhead
-- **Lazy Evaluation**: Conditional serialization - 5000x performance boost when log levels are disabled
-- **Direct JSON Storage**: Raw model JSON logging for ultra-high-frequency scenarios
+#### Model Type Support
+- **POCO Model**: `MT5Bridge.Manager.Models.DealModel` - Hand-written C# classes
+- **Protobuf Model**: `MT5Bridge.Manager.Models.Proto.DealModel` - Protocol Buffers generated models
+- **Performance Comparison**: Compare serialization overhead between POCO and Protobuf
 
-#### Advanced Features
-- **ModelLogger Wrapper**: Chainable, fluent API reducing parameter passing overhead
-- **Global Context**: Reusable JSON contexts across multiple log operations
-- **Nested Models**: Recursive structure serialization with unlimited nesting levels
-- **Field Enrichment**: Add arbitrary key-value pairs to enhance log context
-- **Error Handling**: Integrated exception logging with full stack traces
+#### Comprehensive Field Logging (30+ Fields)
+Logs all DealModel fields except `ApiData` collection:
+- **Core**: Deal, ExternalId, Login, Dealer, Order, Symbol, Action, Entry, Reason
+- **Pricing**: Price, PricePosition, PriceSl, PriceTp, PriceGateway, PriceSLOnOpen, PriceTPOnOpen
+- **Volume**: Volume, VolumeClosed, VolumeClosedExt, VolExt
+- **Financial**: Profit, ProfitRaw, Commission, CommissionAgent, Storage, Fee
+- **Market Data**: MarketBid, MarketAsk, MarketLast, TickValue, TickSize
+- **Rates**: RateProfit, RateMargin
+- **Metadata**: Time, TimeMsc, Digits, DigitsCurrency, ContractSize, ExpertId, PositionId, Comment, Gateway, PriceSource, Flags, ModificationFlags
 
-#### Enterprise Infrastructure
-- **Multi-Target Output**: Console (with ANSI colors), rolling file logs, and AWS CloudWatch
-- **AWS CloudWatch Integration**: Two authentication methods (explicit credentials & default chain)
-- **Thread-Safe**: Safe concurrent logging from multiple threads
-- **Graceful Shutdown**: FlushAndCloseAsync ensures no log loss
+#### Performance Measurement
+- **Isolated Measurement**: Uses `Stopwatch` to measure **only** `logger.Information()` call time
+- **Throughput**: Logs per second measurement
+- **Latency Statistics**: Average, Min, Max, 95th percentile, 99th percentile
+- **Configurable Duration**: Specify test duration in seconds
+- **Variable Interval**: Control logging frequency with min/max intervals (milliseconds)
+
+#### Logging Configuration
+- **Structured Logging**: Native Serilog template syntax with typed parameters
+- **Random Data**: Generates realistic trading data (8 currency pairs, varied actions/reasons/entries)
+- **Multiple Sinks**: Test Console, File, and CloudWatch simultaneously
 
 ---
 
 ## Running the Demo
 
-### Basic Usage
+### POCO Model Performance Test
 ```powershell
-dotnet run
+dotnet run -- -c appsettings.json -d 10 -m poco --min-interval 10 --max-interval 50
 ```
 
-### With Custom Log File
+### Protobuf Model Performance Test
 ```powershell
-dotnet run -- --output-file logs/trading.log
+dotnet run -- -c appsettings.json -d 10 -m protobuf --min-interval 10 --max-interval 50
 ```
 
-### Using Fast JSON (Compact, Numbers as Numbers)
+### Model Comparison (Run both sequentially)
 ```powershell
-dotnet run -- --json-mode fast
+# Test POCO
+dotnet run -- -c appsettings.json -d 30 -m poco --min-interval 10 --max-interval 50
+
+# Test Protobuf
+dotnet run -- -c appsettings.json -d 30 -m protobuf --min-interval 10 --max-interval 50
 ```
 
-### Using Readable JSON (Enums as Strings)
+### High-Frequency Test (1-10ms interval)
 ```powershell
-dotnet run -- --json-mode readable
+dotnet run -- -c appsettings.json -d 30 -m poco --min-interval 1 --max-interval 10
 ```
 
-### Skip CloudWatch Demo
+### Maximum Throughput Test (no delay between logs)
 ```powershell
-dotnet run -- --skip-cloudwatch
+dotnet run -- -c appsettings.json -d 5 -m protobuf --min-interval 0 --max-interval 0
 ```
 
-### Custom Message
+### Long-Running Stress Test (5 minutes)
 ```powershell
-dotnet run -- --message "MT5Bridge Trading System Started"
+dotnet run -- -c appsettings.json -d 300 -m poco --min-interval 10 --max-interval 50
+```
+
+### View Help
+```powershell
+dotnet run -- --help
+```
+
+### Command Line Options
+
+| Option           | Short | Default  | Description                            |
+| ---------------- | ----- | -------- | -------------------------------------- |
+| `--config`       | `-c`  | Required | Path to appsettings configuration file |
+| `--duration`     | `-d`  | 10       | Test duration in seconds               |
+| `--model-type`   | `-m`  | poco     | Model type: "poco" or "protobuf"       |
+| `--min-interval` |       | 1        | Minimum interval between logs (ms)     |
+| `--max-interval` |       | 100      | Maximum interval between logs (ms)     |
+
+---
+
+## Sample Output
+
+### POCO Model Test
+```
+MT5Bridge Serilog Performance Test
+===================================
+
+Configuration:
+  Model Type: POCO
+  Duration: 5 seconds
+  Interval: 10-50 ms
+  Min Log Level: Debug
+  Sinks: Console=True, File=True, CloudWatch=False
+
+Starting performance test (POCO Model)...
+
+[2025-12-27 13:15:42.419 INF] Deal: 295542662 ExtID:EXT-77783 Login:8112 Dealer:633 Order:333491953 Symbol:USDCAD Action:Buy Entry:InOut Reason:Dealer Price:1.4923534669025087 Vol:634 VolClosed:320 Profit:489.77044577618943 ProfitRaw:453.6684564241047 Storage:5.826580300267928 Comm:21.486279155171168 Fee:3.336350507670357 SL:0 TP:1.4947983602483417 PricePos:1.405938611131992 Time:1766812542 TimeMsc:1766812542416 RateProfit:1.0955829318030397 RateMargin:1.0417620228935245 TickVal:0.9632615850441728 TickSize:1E-05 Bid:1.413021058197144 Ask:1.450098168232524 Last:1.3175127803174644 ExpertID:51943 PosID:273904275 Comment:
+
+[2025-12-27 13:15:42.553 INF] Deal: 920496691 ExtID:EXT-34915 Login:3284 Dealer:979 Order:720926607 Symbol:EURUSD Action:Buy Entry:In Reason:TP Price:1.2726597998894493 Vol:494 VolClosed:319 Profit:383.38014000528744 ProfitRaw:-190.08936864185867 Storage:7.364733749697217 Comm:10.921450327536137 Fee:1.082227091430767 SL:1.3131671278944228 TP:0 PricePos:1.4725140543474786 Time:1766812542 TimeMsc:1766812542553 RateProfit:1.0311684213215158 RateMargin:1.0018967669267882 TickVal:0.4422332141153029 TickSize:1E-05 Bid:1.2207804616876015 Ask:1.217843415929545 Last:1.0848996165474356 ExpertID:32296 PosID:252074094 Comment:Test comment
+
+============================================================
+Performance Statistics
+============================================================
+Total Logs:        96
+Total Duration:    5.02 seconds
+Logs/Second:       19.12
+Avg Log Time:      15.8589 ms
+Min Log Time:      3.7462 ms
+Max Log Time:      92.5346 ms
+95th Percentile:   23.5538 ms
+99th Percentile:   92.5346 ms
+============================================================
+
+Test completed successfully!
+```
+
+### Protobuf Model Test
+```
+MT5Bridge Serilog Performance Test
+===================================
+
+Configuration:
+  Model Type: PROTOBUF
+  Duration: 5 seconds
+  Interval: 10-50 ms
+  Min Log Level: Debug
+  Sinks: Console=True, File=True, CloudWatch=False
+
+Starting performance test (Protobuf Model)...
+
+[2025-12-27 13:15:58.681 INF] Deal: 208109769 ExtID:EXT-44695 Login:7669 Dealer:993 Order:279143550 Symbol:EURJPY Action:Buy Entry:Out Reason:Tp Price:1.2479950802853992 Vol:732 VolClosed:129 Profit:-375.5147290907629 ProfitRaw:63.286268427389494 Storage:5.882244653451499 Comm:23.525950235867025 Fee:3.562220711504967 SL:1.3501712946663176 TP:1.4788714229291648 PricePos:1.2220268352887214 Time:1766812558 TimeMsc:1766812558677 RateProfit:1.062083003563762 RateMargin:1.0907097962952312 TickVal:3.0360837710192623 TickSize:1E-05 Bid:1.2059921317871771 Ask:1.1552521575296326 Last:1.4503175397116523 ExpertID:91645 PosID:532987517 Comment:Test comment
+
+============================================================
+Performance Statistics
+============================================================
+Total Logs:        109
+Total Duration:    5.02 seconds
+Logs/Second:       21.71
+Avg Log Time:      10.7013 ms
+Min Log Time:      2.9699 ms
+Max Log Time:      69.4492 ms
+95th Percentile:   19.8455 ms
+99th Percentile:   24.8439 ms
+============================================================
+
+Test completed successfully!
+```
+
+### Performance Comparison Summary
+
+Based on 5-second tests with 10-50ms intervals:
+
+| Metric              | POCO Model | Protobuf Model | Difference |
+| ------------------- | ---------- | -------------- | ---------- |
+| **Total Logs**      | 96         | 109            | +13.5%     |
+| **Logs/Second**     | 19.12      | 21.71          | +13.5%     |
+| **Avg Latency**     | 15.86 ms   | 10.70 ms       | **-32.5%** |
+| **Min Latency**     | 3.75 ms    | 2.97 ms        | -20.8%     |
+| **Max Latency**     | 92.53 ms   | 69.45 ms       | -24.9%     |
+| **95th Percentile** | 23.55 ms   | 19.85 ms       | -15.7%     |
+| **99th Percentile** | 92.53 ms   | 24.84 ms       | **-73.2%** |
+
+**Conclusion**: Protobuf model shows superior performance with **13.5% higher throughput** and **32.5% lower average latency**.
+
+---
+
+## Configuration Files for Testing
+
+Create different `appsettings*.json` files for various test scenarios:
+
+**appsettings.development.json** - Development with verbose logging:
+```json
+{
+  "MinimumLevel": "Debug",
+  "Console": { "Enabled": true, "MinimumLevel": "Debug" },
+  "File": { "Enabled": true, "MinimumLevel": "Debug" },
+  "CloudWatch": { "Enabled": false }
+}
+```
+
+**appsettings.production.json** - Production with cost optimization:
+```json
+{
+  "MinimumLevel": "Debug",
+  "Console": { "Enabled": true, "MinimumLevel": "Information" },
+  "File": { "Enabled": true, "MinimumLevel": "Debug" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Warning" }
+}
+```
+
+**appsettings.test.json** - Testing performance with minimal output:
+```json
+{
+  "MinimumLevel": "Information",
+  "Console": { "Enabled": true, "MinimumLevel": "Information" },
+  "File": { "Enabled": true, "MinimumLevel": "Information" },
+  "CloudWatch": { "Enabled": false }
+}
 ```
 
 ---
@@ -81,57 +234,152 @@ Configuration is managed via `appsettings.json` following the `SerilogConfig` sc
 
 ```json
 {
-  "Logging": {
-    "MinimumLevel": "Debug",
-    "Console": {
-      "Enabled": true,
-      "UseJson": false,
-      "UseAnsiColors": true
-    },
-    "File": {
-      "Enabled": true,
-      "Path": "logs/mt5bridge-.txt",
-      "RollingInterval": "Day",
-      "FileSizeLimitBytes": 104857600,
-      "RetainedFileCountLimit": 30,
-      "UseJson": true
-    },
-    "CloudWatch": {
-      "Enabled": false,
-      "Region": "us-east-1",
-      "LogGroup": "/mt5bridge/serilog/demo",
-      "LogStreamPrefix": "demo-",
-      "AccessKeyId": "",
-      "SecretKey": "",
-      "BatchSizeLimit": 100,
-      "PeriodSeconds": 15
-    }
+  "MinimumLevel": "Debug",
+  "Console": {
+    "Enabled": true,
+    "TextFormatter": "plain",
+    "UseAnsiColors": true
+  },
+  "File": {
+    "Enabled": true,
+    "Path": "logs/mt5bridge-.txt",
+    "RollingInterval": "Day",
+    "FileSizeLimitBytes": 104857600,
+    "RetainedFileCountLimit": 30,
+    "TextFormatter": "plain"
+  },
+  "CloudWatch": {
+    "Enabled": false,
+    "Region": "us-east-1",
+    "LogGroup": "/mt5bridge/serilog/demo",
+    "LogStreamPrefix": "demo-",
+    "AccessKeyId": "",
+    "SecretKey": "",
+    "BatchSizeLimit": 100,
+    "PeriodSeconds": 15,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "TextFormatter": "compact",
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```
 
 ### Configuration Reference
 
-| Option                        | Type          | Default         | Description                                                           |
-| ----------------------------- | ------------- | --------------- | --------------------------------------------------------------------- |
-| `MinimumLevel`                | LogEventLevel | Information     | Minimum log level: Verbose, Debug, Information, Warning, Error, Fatal |
-| `Console.Enabled`             | bool          | true            | Enable console output                                                 |
-| `Console.UseJson`             | bool          | false           | Output as JSON (true) or plain text (false)                           |
-| `Console.UseAnsiColors`       | bool          | true            | Use ANSI colors (set false for containers/non-TTY)                    |
-| `File.Enabled`                | bool          | false           | Enable file logging                                                   |
-| `File.Path`                   | string        | logs/log-.txt   | File path pattern (creates directories automatically)                 |
-| `File.RollingInterval`        | string        | Day             | Rolling strategy: Infinite, Year, Month, Day, Hour, Minute            |
-| `File.FileSizeLimitBytes`     | long?         | 10MB (10485760) | Max file size before rolling                                          |
-| `File.RetainedFileCountLimit` | int?          | 31              | Number of old files to keep                                           |
-| `File.UseJson`                | bool          | true            | File output format (JSON or plain text)                               |
-| `CloudWatch.Enabled`          | bool          | false           | Enable CloudWatch Logs integration                                    |
-| `CloudWatch.Region`           | string        | us-east-1       | AWS region (must be valid AWS region name)                            |
-| `CloudWatch.LogGroup`         | string        | MT5Bridge       | CloudWatch log group name (1-256 characters)                          |
-| `CloudWatch.LogStreamPrefix`  | string        | Demo            | Prefix for log stream names                                           |
-| `CloudWatch.AccessKeyId`      | string        | (empty)         | AWS Access Key ID (optional, uses default credential chain if empty)  |
-| `CloudWatch.SecretKey`        | string        | (empty)         | AWS Secret Key (required if AccessKeyId is set)                       |
-| `CloudWatch.BatchSizeLimit`   | int           | 100             | Events per batch to CloudWatch (1-1000, AWS limit)                    |
-| `CloudWatch.PeriodSeconds`    | int           | 5               | Flush interval to CloudWatch in seconds (1-300)                       |
+| Option                                | Type           | Default                   | Description                                                            |
+| ------------------------------------- | -------------- | ------------------------- | ---------------------------------------------------------------------- |
+| `MinimumLevel`                        | LogEventLevel  | Information               | Minimum log level: Verbose, Debug, Information, Warning, Error, Fatal  |
+| `Console.Enabled`                     | bool           | true                      | Enable console output                                                  |
+| `Console.TextFormatter`               | string         | "" (plain)                | Format: "plain" or empty (text), "json", "compact", "rendered-compact" |
+| `Console.UseAnsiColors`               | bool           | true                      | Use ANSI colors (set false for containers/non-TTY)                     |
+| `Console.MinimumLevel`                | LogEventLevel? | null (global)             | Console-specific log level (overrides global MinimumLevel if set)      |
+| `File.Enabled`                        | bool           | false                     | Enable file logging                                                    |
+| `File.Path`                           | string         | logs/log-.txt             | File path pattern (creates directories automatically)                  |
+| `File.RollingInterval`                | string         | Day                       | Rolling strategy: Infinite, Year, Month, Day, Hour, Minute             |
+| `File.FileSizeLimitBytes`             | long?          | 10MB (10485760)           | Max file size before rolling                                           |
+| `File.RetainedFileCountLimit`         | int?           | 31                        | Number of old files to keep                                            |
+| `File.TextFormatter`                  | string         | "" (plain)                | Format: "plain" or empty (text), "json", "compact", "rendered-compact" |
+| `File.MinimumLevel`                   | LogEventLevel? | null (global)             | File-specific log level (overrides global MinimumLevel if set)         |
+| `CloudWatch.Enabled`                  | bool           | false                     | Enable CloudWatch Logs integration                                     |
+| `CloudWatch.Region`                   | string         | (empty)                   | AWS region (required when enabled, e.g., us-east-1, eu-west-1)         |
+| `CloudWatch.LogGroup`                 | string         | (empty)                   | CloudWatch log group name (required when enabled, 1-256 characters)    |
+| `CloudWatch.CreateLogGroup`           | bool           | false                     | Whether to create the log group if it doesn't exist                    |
+| `CloudWatch.LogStreamPrefix`          | string         | (empty)                   | Prefix for log stream names (optional)                                 |
+| `CloudWatch.AccessKeyId`              | string         | (empty)                   | AWS Access Key ID (optional, uses default credential chain if empty)   |
+| `CloudWatch.SecretKey`                | string         | (empty)                   | AWS Secret Access Key (required if AccessKeyId is set)                 |
+| `CloudWatch.BatchSizeLimit`           | int            | 100                       | Events per batch to CloudWatch (1-1000, AWS limit)                     |
+| `CloudWatch.PeriodSeconds`            | int            | 5                         | Flush interval to CloudWatch in seconds (1-300)                        |
+| `CloudWatch.LogStreamNamingStrategy`  | string         | configurable              | Log stream naming strategy: "default", "constant", "configurable"      |
+| `CloudWatch.LogStreamIncludeHostname` | bool           | true                      | Include hostname in log stream name (for "configurable" strategy)      |
+| `CloudWatch.LogStreamIncludeGuid`     | bool           | true                      | Include GUID in log stream name (for "configurable" strategy)          |
+| `CloudWatch.TextFormatter`            | string         | compact                   | Text formatter: "json", "compact" (recommended), "rendered-compact"    |
+| `CloudWatch.QueueSizeLimit`           | int            | 10000                     | Maximum queue size before dropping events (100-100000)                 |
+| `CloudWatch.RetryAttempts`            | byte           | 5                         | Number of retry attempts for failed uploads (0-255)                    |
+| `CloudWatch.MinimumLevel`             | LogEventLevel? | null (global)             | CloudWatch-specific log level (overrides global MinimumLevel if set)   |
+| `Diagnostics.ThrottleWindowSeconds`   | int            | 300                       | Time window in seconds for throttling Serilog internal errors          |
+| `Diagnostics.ThrottleLimit`           | int            | 100                       | Max internal error messages per window (0 = disable diagnostic output) |
+| `Diagnostics.Console.Enabled`         | bool           | false                     | Enable internal diagnostic logging to Console                          |
+| `Diagnostics.File.Enabled`            | bool           | false                     | Enable internal diagnostic logging to a file                           |
+| `Diagnostics.File.Path`               | string         | logs/serilog-internal.log | Path for internal diagnostic logs                                      |
+
+---
+
+## Per-Sink Log Level Configuration
+
+Each sink (Console, File, CloudWatch) can have its own minimum log level, enabling fine-grained control over what gets logged where.
+
+### Configuration Strategy
+
+**Global MinimumLevel**: Acts as the first filter - log events below this level are never created (performance optimization).
+
+**Sink-specific MinimumLevel**: Optional override for each sink. If not set (null), the sink uses the global level.
+
+### Example: Production Multi-Level Logging
+
+```json
+{
+  "MinimumLevel": "Debug",        // Create all Debug+ events
+  "Console": {
+    "Enabled": true,
+    "MinimumLevel": "Information"  // Console only shows Information+
+  },
+  "File": {
+    "Enabled": true,
+    "Path": "logs/app-.log",
+    "MinimumLevel": "Debug"        // File captures everything (Debug+)
+  },
+  "CloudWatch": {
+    "Enabled": true,
+    "Region": "us-east-1",
+    "LogGroup": "/production/mt5bridge",
+    "MinimumLevel": "Warning",     // CloudWatch only stores Warning+ (cost optimization)
+    "BatchSizeLimit": 500,
+    "PeriodSeconds": 10
+  }
+}
+```
+
+### Common Scenarios
+
+**Development Environment**: Console=Debug, File=Verbose, CloudWatch=Disabled
+```json
+{
+  "MinimumLevel": "Verbose",
+  "Console": { "Enabled": true, "MinimumLevel": "Debug" },
+  "File": { "Enabled": true, "MinimumLevel": "Verbose" },
+  "CloudWatch": { "Enabled": false }
+}
+```
+
+**Production Environment**: Console=Information, File=Debug, CloudWatch=Warning
+```json
+{
+  "MinimumLevel": "Debug",
+  "Console": { "Enabled": true, "MinimumLevel": "Information" },
+  "File": { "Enabled": true, "MinimumLevel": "Debug" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Warning" }
+}
+```
+
+**Troubleshooting Mode**: Console=Debug, File=Verbose, CloudWatch=Debug
+```json
+{
+  "MinimumLevel": "Verbose",
+  "Console": { "Enabled": true, "MinimumLevel": "Debug" },
+  "File": { "Enabled": true, "MinimumLevel": "Verbose" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Debug" }
+}
+```
+
+### Benefits
+
+- 🚀 **Performance**: Reduce console noise (Information+) while preserving detailed logs
+- 💰 **Cost Optimization**: Send only critical logs to CloudWatch (Warning+) while File captures Debug
+- 🔍 **Troubleshooting**: Different environments can have different logging strategies
+- 🎯 **Flexibility**: Change logging strategies without modifying code - just configuration
 
 ---
 
@@ -151,7 +399,13 @@ Set credentials directly in `appsettings.json`:
     "AccessKeyId": "YOUR_ACCESS_KEY_ID_HERE",
     "SecretKey": "YOUR_SECRET_KEY_HERE",
     "BatchSizeLimit": 100,
-    "PeriodSeconds": 5
+    "PeriodSeconds": 5,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "TextFormatter": "compact",
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```
@@ -176,7 +430,13 @@ Leave `AccessKeyId` and `SecretKey` empty. AWS SDK searches credentials in this 
     "AccessKeyId": "",
     "SecretKey": "",
     "BatchSizeLimit": 100,
-    "PeriodSeconds": 5
+    "PeriodSeconds": 5,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "TextFormatter": "compact",
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```
@@ -265,7 +525,8 @@ Adds custom key-value fields to enhance log context.
 
 **CloudWatch not working?**
 - Verify AWS credentials are configured (environment vars or `~/.aws/credentials`)
-- Check IAM role has `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents` permissions
+- Check IAM role has `logs:CreateLogStream`, `logs:PutLogEvents` permissions.
+- If `CreateLogGroup` is set to `true`, also requires `logs:CreateLogGroup` and `logs:DescribeLogGroups`.
 - Verify `Region` is correct
 
 **High memory usage?**
@@ -301,67 +562,218 @@ For complete documentation, see:
 
 ## 中文文档
 
-**MT5Bridge.Serilog** 的完整演示，展示适用于 MT5 交易应用的高性能结构化日志功能。
+**MT5Bridge.Serilog** 的性能测试工具，持续记录完整的交易成交数据并测量不同模型类型的日志性能。
 
-**状态**: ✅ 生产就绪 | **演示功能**: 完整 | **版本**: 2.0
+**状态**: ✅ 生产就绪 | **用途**: 性能测试与基准测试
 
 ## 概述
 
-本演示展示企业级 Serilog 日志库的所有功能：
+本演示是一个性能测试工具：
+- 持续记录完整的结构化交易成交数据（每条日志 30+ 字段）
+- 测量**纯日志性能**（排除数据生成时间）
+- 测试 **POCO** 和 **Protobuf** 模型序列化性能
+- 提供详细的性能统计，包含百分位分析
 
-### 核心功能演示
+### 功能特性
 
-#### 性能与优化
-- **标准日志**：Information、Warning、Debug、Error 级别，自动上下文
-- **高性能模型日志**：源代码生成 JSON 序列化，零反射开销
-- **惰性计算**：条件序列化 - 日志级别禁用时性能提升 5000 倍
-- **直接 JSON 存储**：超高频场景的原始模型 JSON 日志
+#### 模型类型支持
+- **POCO 模型**: `MT5Bridge.Manager.Models.DealModel` - 手写 C# 类
+- **Protobuf 模型**: `MT5Bridge.Manager.Models.Proto.DealModel` - Protocol Buffers 生成的模型
+- **性能对比**: 比较 POCO 和 Protobuf 之间的序列化开销
 
-#### 高级功能
-- **ModelLogger 包装器**：可链式调用的流式 API，减少参数传递开销
-- **全局上下文**：跨多个日志操作的可重用 JSON 上下文
-- **嵌套模型**：无限嵌套层级的递归结构序列化
-- **字段增强**：添加任意键值对以增强日志上下文
-- **错误处理**：集成异常日志记录，包含完整堆栈跟踪
+#### 完整字段记录（30+ 字段）
+记录除 `ApiData` 集合外的所有 DealModel 字段：
+- **核心字段**: Deal、ExternalId、Login、Dealer、Order、Symbol、Action、Entry、Reason
+- **价格相关**: Price、PricePosition、PriceSl、PriceTp、PriceGateway、PriceSLOnOpen、PriceTPOnOpen
+- **成交量**: Volume、VolumeClosed、VolumeClosedExt、VolExt
+- **财务数据**: Profit、ProfitRaw、Commission、CommissionAgent、Storage、Fee
+- **市场数据**: MarketBid、MarketAsk、MarketLast、TickValue、TickSize
+- **汇率**: RateProfit、RateMargin
+- **元数据**: Time、TimeMsc、Digits、DigitsCurrency、ContractSize、ExpertId、PositionId、Comment、Gateway、PriceSource、Flags、ModificationFlags
 
-#### 企业级基础设施
-- **多目标输出**：控制台（支持 ANSI 颜色）、滚动文件日志、AWS CloudWatch
-- **AWS CloudWatch 集成**：两种认证方法（显式凭证和默认凭证链）
-- **线程安全**：支持多线程并发日志记录
-- **优雅关闭**：FlushAndCloseAsync 确保无日志丢失
+#### 性能测量
+- **隔离测量**: 使用 `Stopwatch` 仅测量 `logger.Information()` 调用时间
+- **吞吐量**: 每秒日志数测量
+- **延迟统计**: 平均值、最小值、最大值、95 分位数、99 分位数
+- **可配置时长**: 指定测试持续时间（秒）
+- **可变间隔**: 通过最小/最大间隔控制日志频率（毫秒）
+
+#### 日志配置
+- **结构化日志**: 原生 Serilog 模板语法和类型化参数
+- **随机数据**: 生成真实的交易数据（8 个货币对，多种操作/原因/进场方式）
+- **多目标输出**: 同时测试控制台、文件和 CloudWatch
 
 ---
 
 ## 运行演示
 
-### 基础用法
+### POCO 模型性能测试
 ```powershell
-dotnet run
+dotnet run -- -c appsettings.json -d 10 -m poco --min-interval 10 --max-interval 50
 ```
 
-### 自定义日志文件
+### Protobuf 模型性能测试
 ```powershell
-dotnet run -- --output-file logs/trading.log
+dotnet run -- -c appsettings.json -d 10 -m protobuf --min-interval 10 --max-interval 50
 ```
 
-### 使用快速 JSON（紧凑，数字为数字）
+### 模型对比（依次运行两者）
 ```powershell
-dotnet run -- --json-mode fast
+# 测试 POCO
+dotnet run -- -c appsettings.json -d 30 -m poco --min-interval 10 --max-interval 50
+
+# 测试 Protobuf
+dotnet run -- -c appsettings.json -d 30 -m protobuf --min-interval 10 --max-interval 50
 ```
 
-### 使用可读 JSON（枚举为字符串）
+### 高频测试（1-10ms 间隔）
 ```powershell
-dotnet run -- --json-mode readable
+dotnet run -- -c appsettings.json -d 30 -m poco --min-interval 1 --max-interval 10
 ```
 
-### 跳过 CloudWatch 演示
+### 最大吞吐量测试（日志间无延迟）
 ```powershell
-dotnet run -- --skip-cloudwatch
+dotnet run -- -c appsettings.json -d 5 -m protobuf --min-interval 0 --max-interval 0
 ```
 
-### 自定义消息
+### 长时间压力测试（5 分钟）
 ```powershell
-dotnet run -- --message "MT5Bridge Trading System Started"
+dotnet run -- -c appsettings.json -d 300 -m poco --min-interval 10 --max-interval 50
+```
+
+### 查看帮助信息
+```powershell
+dotnet run -- --help
+```
+
+### 命令行选项
+
+| 选项             | 简写 | 默认值 | 说明                           |
+| ---------------- | ---- | ------ | ------------------------------ |
+| `--config`       | `-c` | 必需   | appsettings 配置文件路径       |
+| `--duration`     | `-d` | 10     | 测试持续时间（秒）             |
+| `--model-type`   | `-m` | poco   | 模型类型："poco" 或 "protobuf" |
+| `--min-interval` |      | 1      | 日志间最小间隔（毫秒）         |
+| `--max-interval` |      | 100    | 日志间最大间隔（毫秒）         |
+
+---
+
+## 示例输出
+
+### POCO 模型测试
+```
+MT5Bridge Serilog Performance Test
+===================================
+
+Configuration:
+  Model Type: POCO
+  Duration: 5 seconds
+  Interval: 10-50 ms
+  Min Log Level: Debug
+  Sinks: Console=True, File=True, CloudWatch=False
+
+Starting performance test (POCO Model)...
+
+[2025-12-27 13:15:42.419 INF] Deal: 295542662 ExtID:EXT-77783 Login:8112 Dealer:633 Order:333491953 Symbol:USDCAD Action:Buy Entry:InOut Reason:Dealer Price:1.4923534669025087 Vol:634 VolClosed:320 Profit:489.77044577618943 ProfitRaw:453.6684564241047 Storage:5.826580300267928 Comm:21.486279155171168 Fee:3.336350507670357 SL:0 TP:1.4947983602483417 PricePos:1.405938611131992 Time:1766812542 TimeMsc:1766812542416 RateProfit:1.0955829318030397 RateMargin:1.0417620228935245 TickVal:0.9632615850441728 TickSize:1E-05 Bid:1.413021058197144 Ask:1.450098168232524 Last:1.3175127803174644 ExpertID:51943 PosID:273904275 Comment:
+
+============================================================
+Performance Statistics
+============================================================
+Total Logs:        96
+Total Duration:    5.02 seconds
+Logs/Second:       19.12
+Avg Log Time:      15.8589 ms
+Min Log Time:      3.7462 ms
+Max Log Time:      92.5346 ms
+95th Percentile:   23.5538 ms
+99th Percentile:   92.5346 ms
+============================================================
+
+Test completed successfully!
+```
+
+### Protobuf 模型测试
+```
+MT5Bridge Serilog Performance Test
+===================================
+
+Configuration:
+  Model Type: PROTOBUF
+  Duration: 5 seconds
+  Interval: 10-50 ms
+  Min Log Level: Debug
+  Sinks: Console=True, File=True, CloudWatch=False
+
+Starting performance test (Protobuf Model)...
+
+[2025-12-27 13:15:58.681 INF] Deal: 208109769 ExtID:EXT-44695 Login:7669 Dealer:993 Order:279143550 Symbol:EURJPY Action:Buy Entry:Out Reason:Tp Price:1.2479950802853992 Vol:732 VolClosed:129 Profit:-375.5147290907629 ProfitRaw:63.286268427389494 Storage:5.882244653451499 Comm:23.525950235867025 Fee:3.562220711504967 SL:1.3501712946663176 TP:1.4788714229291648 PricePos:1.2220268352887214 Time:1766812558 TimeMsc:1766812558677 RateProfit:1.062083003563762 RateMargin:1.0907097962952312 TickVal:3.0360837710192623 TickSize:1E-05 Bid:1.2059921317871771 Ask:1.1552521575296326 Last:1.4503175397116523 ExpertID:91645 PosID:532987517 Comment:Test comment
+
+============================================================
+Performance Statistics
+============================================================
+Total Logs:        109
+Total Duration:    5.02 seconds
+Logs/Second:       21.71
+Avg Log Time:      10.7013 ms
+Min Log Time:      2.9699 ms
+Max Log Time:      69.4492 ms
+95th Percentile:   19.8455 ms
+99th Percentile:   24.8439 ms
+============================================================
+
+Test completed successfully!
+```
+
+### 性能对比总结
+
+基于 5 秒测试，10-50ms 间隔：
+
+| 指标            | POCO 模型 | Protobuf 模型 | 差异       |
+| --------------- | --------- | ------------- | ---------- |
+| **总日志数**    | 96        | 109           | +13.5%     |
+| **每秒日志数**  | 19.12     | 21.71         | +13.5%     |
+| **平均延迟**    | 15.86 ms  | 10.70 ms      | **-32.5%** |
+| **最小延迟**    | 3.75 ms   | 2.97 ms       | -20.8%     |
+| **最大延迟**    | 92.53 ms  | 69.45 ms      | -24.9%     |
+| **95 分位延迟** | 23.55 ms  | 19.85 ms      | -15.7%     |
+| **99 分位延迟** | 92.53 ms  | 24.84 ms      | **-73.2%** |
+
+**结论**: Protobuf 模型表现更优，**吞吐量提升 13.5%**，**平均延迟降低 32.5%**。
+
+---
+
+## 用于测试的配置文件
+
+为不同的测试场景创建不同的 `appsettings*.json` 文件：
+
+**appsettings.development.json** - 开发环境，详细日志：
+```json
+{
+  "MinimumLevel": "Debug",
+  "Console": { "Enabled": true, "MinimumLevel": "Debug" },
+  "File": { "Enabled": true, "MinimumLevel": "Debug" },
+  "CloudWatch": { "Enabled": false }
+}
+```
+
+**appsettings.production.json** - 生产环境，成本优化：
+```json
+{
+  "MinimumLevel": "Debug",
+  "Console": { "Enabled": true, "MinimumLevel": "Information" },
+  "File": { "Enabled": true, "MinimumLevel": "Debug" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Warning" }
+}
+```
+
+**appsettings.test.json** - 测试性能，最小化输出：
+```json
+{
+  "MinimumLevel": "Information",
+  "Console": { "Enabled": true, "MinimumLevel": "Information" },
+  "File": { "Enabled": true, "MinimumLevel": "Information" },
+  "CloudWatch": { "Enabled": false }
+}
 ```
 
 ---
@@ -374,57 +786,152 @@ dotnet run -- --message "MT5Bridge Trading System Started"
 
 ```json
 {
-  "Logging": {
-    "MinimumLevel": "Debug",
-    "Console": {
-      "Enabled": true,
-      "UseJson": false,
-      "UseAnsiColors": true
-    },
-    "File": {
-      "Enabled": true,
-      "Path": "logs/mt5bridge-.txt",
-      "RollingInterval": "Day",
-      "FileSizeLimitBytes": 104857600,
-      "RetainedFileCountLimit": 30,
-      "UseJson": true
-    },
-    "CloudWatch": {
-      "Enabled": false,
-      "Region": "us-east-1",
-      "LogGroup": "/mt5bridge/serilog/demo",
-      "LogStreamPrefix": "demo-",
-      "AccessKeyId": "",
-      "SecretKey": "",
-      "BatchSizeLimit": 100,
-      "PeriodSeconds": 15
-    }
+  "MinimumLevel": "Debug",
+  "Console": {
+    "Enabled": true,
+    "TextFormatter": "plain",
+    "UseAnsiColors": true
+  },
+  "File": {
+    "Enabled": true,
+    "Path": "logs/mt5bridge-.txt",
+    "RollingInterval": "Day",
+    "FileSizeLimitBytes": 104857600,
+    "RetainedFileCountLimit": 30,
+    "TextFormatter": "plain"
+  },
+  "CloudWatch": {
+    "Enabled": false,
+    "Region": "us-east-1",
+    "LogGroup": "/mt5bridge/serilog/demo",
+    "LogStreamPrefix": "demo-",
+    "AccessKeyId": "",
+    "SecretKey": "",
+    "BatchSizeLimit": 100,
+    "PeriodSeconds": 15,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "TextFormatter": "compact",
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```
 
 ### 配置说明
 
-| 选项                          | 类型          | 默认值        | 说明                                                             |
-| ----------------------------- | ------------- | ------------- | ---------------------------------------------------------------- |
-| `MinimumLevel`                | LogEventLevel | Information   | 最小日志级别：Verbose, Debug, Information, Warning, Error, Fatal |
-| `Console.Enabled`             | bool          | true          | 启用控制台输出                                                   |
-| `Console.UseJson`             | bool          | false         | 输出为 JSON (true) 或纯文本 (false)                              |
-| `Console.UseAnsiColors`       | bool          | true          | 使用 ANSI 颜色（容器环境设为 false）                             |
-| `File.Enabled`                | bool          | false         | 启用文件日志                                                     |
-| `File.Path`                   | string        | logs/log-.txt | 文件路径模式（自动创建目录）                                     |
-| `File.RollingInterval`        | string        | Day           | 滚动策略：Infinite, Year, Month, Day, Hour, Minute               |
-| `File.FileSizeLimitBytes`     | long?         | 10MB          | 文件大小超过此值时滚动                                           |
-| `File.RetainedFileCountLimit` | int?          | 31            | 保留的旧日志文件数                                               |
-| `File.UseJson`                | bool          | true          | 文件输出格式（JSON 或纯文本）                                    |
-| `CloudWatch.Enabled`          | bool          | false         | 启用 CloudWatch 日志                                             |
-| `CloudWatch.Region`           | string        | us-east-1     | AWS 区域                                                         |
-| `CloudWatch.LogGroup`         | string        | MT5Bridge     | CloudWatch 日志组名称                                            |
-| `CloudWatch.LogStreamPrefix`  | string        | Demo          | 日志流名称前缀                                                   |
-| `CloudWatch.AccessKeyId`      | string        | (空)          | AWS 访问密钥 ID（可选，留空则使用默认凭证链）                    |
-| `CloudWatch.SecretKey`        | string        | (空)          | AWS 密钥（若设置 AccessKeyId 则必须提供）                        |
-| `CloudWatch.BatchSizeLimit`   | int           | 100           | 批量发送的事件数 (1-1000)                                        |
-| `CloudWatch.PeriodSeconds`    | int           | 5             | 刷新到 CloudWatch 的间隔秒数 (1-300)                             |
+| 选项                                  | 类型           | 默认值                    | 说明                                                                |
+| ------------------------------------- | -------------- | ------------------------- | ------------------------------------------------------------------- |
+| `MinimumLevel`                        | LogEventLevel  | Information               | 最小日志级别：Verbose, Debug, Information, Warning, Error, Fatal    |
+| `Console.Enabled`                     | bool           | true                      | 启用控制台输出                                                      |
+| `Console.TextFormatter`               | string         | "" (纯文本)               | 格式：纯文本（"plain" 或空），"json"、"compact"、"rendered-compact" |
+| `Console.UseAnsiColors`               | bool           | true                      | 使用 ANSI 颜色（容器环境设为 false）                                |
+| `Console.MinimumLevel`                | LogEventLevel? | null (全局)               | Console 专属日志级别（覆盖全局 MinimumLevel）                       |
+| `File.Enabled`                        | bool           | false                     | 启用文件日志                                                        |
+| `File.Path`                           | string         | logs/log-.txt             | 文件路径模式（自动创建目录）                                        |
+| `File.RollingInterval`                | string         | Day                       | 滚动策略：Infinite, Year, Month, Day, Hour, Minute                  |
+| `File.FileSizeLimitBytes`             | long?          | 10MB                      | 文件大小超过此值时滚动                                              |
+| `File.RetainedFileCountLimit`         | int?           | 31                        | 保留的旧日志文件数                                                  |
+| `File.TextFormatter`                  | string         | "" (纯文本)               | 格式：纯文本（"plain" 或空），"json"、"compact"、"rendered-compact" |
+| `File.MinimumLevel`                   | LogEventLevel? | null (全局)               | File 专属日志级别（覆盖全局 MinimumLevel）                          |
+| `CloudWatch.Enabled`                  | bool           | false                     | 启用 CloudWatch 日志                                                |
+| `CloudWatch.Region`                   | string         | (空)                      | AWS 区域（启用时必填，如 us-east-1, eu-west-1）                     |
+| `CloudWatch.LogGroup`                 | string         | (空)                      | CloudWatch 日志组名称（启用时必填，1-256 字符）                     |
+| `CloudWatch.CreateLogGroup`           | bool           | false                     | 是否在日志组不存在时自动创建                                        |
+| `CloudWatch.LogStreamPrefix`          | string         | (空)                      | 日志流名称前缀（可选）                                              |
+| `CloudWatch.AccessKeyId`              | string         | (空)                      | AWS 访问密钥 ID（可选，留空则使用默认凭证链）                       |
+| `CloudWatch.SecretKey`                | string         | (空)                      | AWS 密钥（若设置 AccessKeyId 则必须提供）                           |
+| `CloudWatch.BatchSizeLimit`           | int            | 100                       | 批量发送的事件数 (1-1000)                                           |
+| `CloudWatch.PeriodSeconds`            | int            | 5                         | 刷新到 CloudWatch 的间隔秒数 (1-300)                                |
+| `CloudWatch.LogStreamNamingStrategy`  | string         | configurable              | 日志流命名策略："default"、"constant"、"configurable"               |
+| `CloudWatch.LogStreamIncludeHostname` | bool           | true                      | 日志流名称中包含主机名（"configurable" 策略）                       |
+| `CloudWatch.LogStreamIncludeGuid`     | bool           | true                      | 日志流名称中包含 GUID（"configurable" 策略）                        |
+| `CloudWatch.TextFormatter`            | string         | compact                   | 文本格式化器："json"、"compact"（推荐）、"rendered-compact"         |
+| `CloudWatch.QueueSizeLimit`           | int            | 10000                     | 队列满时丢弃事件的最大队列大小 (100-100000)                         |
+| `CloudWatch.RetryAttempts`            | byte           | 5                         | 失败上传的重试次数 (0-255)                                          |
+| `CloudWatch.MinimumLevel`             | LogEventLevel? | null (全局)               | CloudWatch 专属日志级别（覆盖全局 MinimumLevel）                    |
+| `Diagnostics.ThrottleWindowSeconds`   | int            | 300                       | 限流时间窗口（秒），用于 Serilog 内部错误消息限流                   |
+| `Diagnostics.ThrottleLimit`           | int            | 100                       | 在限流窗口内允许的最大内部错误消息数量（0=禁用诊断输出）            |
+| `Diagnostics.Console.Enabled`         | bool           | false                     | 是否启用内部诊断日志输出到控制台                                    |
+| `Diagnostics.File.Enabled`            | bool           | false                     | 是否启用内部诊断日志输出到文件                                      |
+| `Diagnostics.File.Path`               | string         | logs/serilog-internal.log | 内部诊断日志的文件路径                                              |
+
+---
+
+## 各 Sink 独立日志级别配置
+
+每个 sink（Console、File、CloudWatch）可以拥有自己的最小日志级别，实现对不同输出目标的精细控制。
+
+### 配置策略
+
+**全局 MinimumLevel**：作为第一道过滤器 - 低于此级别的日志事件永远不会被创建（性能优化）。
+
+**Sink 专属 MinimumLevel**：每个 sink 的可选覆盖级别。如果未设置（null），sink 使用全局级别。
+
+### 示例：生产环境多级别日志
+
+```json
+{
+  "MinimumLevel": "Debug",         // 创建所有 Debug+ 事件
+  "Console": {
+    "Enabled": true,
+    "MinimumLevel": "Information"  // Console 仅显示 Information+
+  },
+  "File": {
+    "Enabled": true,
+    "Path": "logs/app-.log",
+    "MinimumLevel": "Debug"        // File 捕获所有内容（Debug+）
+  },
+  "CloudWatch": {
+    "Enabled": true,
+    "Region": "us-east-1",
+    "LogGroup": "/production/mt5bridge",
+    "MinimumLevel": "Warning",     // CloudWatch 仅存储 Warning+（成本优化）
+    "BatchSizeLimit": 500,
+    "PeriodSeconds": 10
+  }
+}
+```
+
+### 常见场景
+
+**开发环境**：Console=Debug, File=Verbose, CloudWatch=禁用
+```json
+{
+  "MinimumLevel": "Verbose",
+  "Console": { "Enabled": true, "MinimumLevel": "Debug" },
+  "File": { "Enabled": true, "MinimumLevel": "Verbose" },
+  "CloudWatch": { "Enabled": false }
+}
+```
+
+**生产环境**：Console=Information, File=Debug, CloudWatch=Warning
+```json
+{
+  "MinimumLevel": "Debug",
+  "Console": { "Enabled": true, "MinimumLevel": "Information" },
+  "File": { "Enabled": true, "MinimumLevel": "Debug" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Warning" }
+}
+```
+
+**故障排查模式**：Console=Debug, File=Verbose, CloudWatch=Debug
+```json
+{
+  "MinimumLevel": "Verbose",
+  "Console": { "Enabled": true, "MinimumLevel": "Debug" },
+  "File": { "Enabled": true, "MinimumLevel": "Verbose" },
+  "CloudWatch": { "Enabled": true, "MinimumLevel": "Debug" }
+}
+```
+
+### 优势
+
+- 🚀 **性能优化**：减少控制台输出噪音（Information+），同时保留文件中的详细日志
+- 💰 **成本优化**：仅将关键日志发送到 CloudWatch（Warning+），而 File 捕获 Debug
+- 🔍 **故障排查**：不同环境可拥有不同的日志策略，无需修改代码
+- 🎯 **灵活性**：通过配置改变日志策略，无需修改代码
 
 ---
 
@@ -444,7 +951,13 @@ dotnet run -- --message "MT5Bridge Trading System Started"
     "AccessKeyId": "YOUR_ACCESS_KEY_ID_HERE",
     "SecretKey": "YOUR_SECRET_KEY_HERE",
     "BatchSizeLimit": 100,
-    "PeriodSeconds": 5
+    "PeriodSeconds": 5,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "TextFormatter": "compact",
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```
@@ -469,7 +982,13 @@ dotnet run -- --message "MT5Bridge Trading System Started"
     "AccessKeyId": "",
     "SecretKey": "",
     "BatchSizeLimit": 100,
-    "PeriodSeconds": 5
+    "PeriodSeconds": 5,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "TextFormatter": "compact",
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```
@@ -558,7 +1077,8 @@ dotnet run -- --message "MT5Bridge Trading System Started"
 
 **CloudWatch 不工作？**
 - 验证 AWS 凭证已配置（环境变量或 `~/.aws/credentials`）
-- 检查 IAM 角色是否有 `logs:CreateLogGroup`、`logs:CreateLogStream`、`logs:PutLogEvents` 权限
+- 检查 IAM 角色是否有 `logs:CreateLogStream`、`logs:PutLogEvents` 权限。
+- 如果 `CreateLogGroup` 设置为 `true`，还需要 `logs:CreateLogGroup` 和 `logs:DescribeLogGroups` 权限。
 - 验证 `Region` 是否正确
 
 **内存使用过高？**
@@ -715,7 +1235,8 @@ Logs are streamed to AWS CloudWatch Logs with:
 ### CloudWatch Connection Issues
 - Verify AWS credentials are configured (environment, profile, or credentials file)
 - Check `CloudWatch.Enabled` is `true`
-- Confirm IAM permissions: `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents`
+- Confirm IAM permissions: `logs:CreateLogStream`, `logs:PutLogEvents`.
+- If `CreateLogGroup` is `true`, also include `logs:CreateLogGroup` and `logs:DescribeLogGroups`.
 - Verify region matches your CloudWatch location
 
 ### JSON Serialization Errors
@@ -741,7 +1262,13 @@ Add AccessKeyId and SecretKey directly (not recommended for production):
     "AccessKeyId": "AKIAIOSFODNN7EXAMPLE",
     "SecretKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
     "BatchSizeLimit": 100,
-    "PeriodSeconds": 5
+    "PeriodSeconds": 5,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "TextFormatter": "compact",
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```
@@ -762,7 +1289,13 @@ Leave AccessKeyId and SecretKey empty to use AWS default credential providers:
     "AccessKeyId": "",
     "SecretKey": "",
     "BatchSizeLimit": 100,
-    "PeriodSeconds": 5
+    "PeriodSeconds": 5,
+    "LogStreamNamingStrategy": "configurable",
+    "LogStreamIncludeHostname": true,
+    "LogStreamIncludeGuid": true,
+    "TextFormatter": "compact",
+    "QueueSizeLimit": 10000,
+    "RetryAttempts": 5
   }
 }
 ```

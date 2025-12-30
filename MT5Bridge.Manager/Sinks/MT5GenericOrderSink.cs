@@ -13,17 +13,23 @@ internal class MT5GenericOrderSink<T> : CIMTOrderSink where T : class
     private readonly Action<T>? _onAdd;
     private readonly Action<T>? _onUpdate;
     private readonly Action<T>? _onDelete;
+    private readonly Action<ulong>? _onClean;
+    private readonly Action? _onSync;
 
     public MT5GenericOrderSink(
         Func<CIMTOrder, T> converter,
         Action<T>? onAdd,
         Action<T>? onUpdate,
-        Action<T>? onDelete)
+        Action<T>? onDelete,
+        Action<ulong>? onClean = null,
+        Action? onSync = null)
     {
         _converter = converter ?? throw new ArgumentNullException(nameof(converter));
         _onAdd = onAdd;
         _onUpdate = onUpdate;
         _onDelete = onDelete;
+        _onClean = onClean;
+        _onSync = onSync;
     }
 
     public override void OnOrderAdd(CIMTOrder order)
@@ -51,5 +57,15 @@ internal class MT5GenericOrderSink<T> : CIMTOrderSink where T : class
             var model = _converter(order);
             _onDelete(model);
         }
+    }
+
+    public override void OnOrderSync()
+    {
+        _onSync?.Invoke();
+    }
+
+    public override void OnOrderClean(ulong login)
+    {
+        _onClean?.Invoke(login);
     }
 }
