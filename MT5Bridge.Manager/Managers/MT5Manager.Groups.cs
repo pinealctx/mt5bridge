@@ -1,4 +1,5 @@
 using MetaQuotes.MT5CommonAPI;
+using MT5Bridge.Core.Collections;
 using MT5Bridge.Manager.Models;
 
 // Proto extensions
@@ -50,18 +51,10 @@ public partial class MT5Manager
                 }
 
                 var total = _groupArray.Total();
-                var results = new List<T>((int)total);
-                for (uint i = 0; i < total; i++)
-                {
-                    var group = _groupArray.Next(i);
-                    if (group != null)
-                    {
-                        results.Add(converter(group));
-                    }
-                }
+                var results = ArrayUtils.Convert(total, i => _groupArray.Next(i), converter);
 
-                _logger.Debug($"Retrieved {results.Count} groups");
-                return MT5Result<T[]>.Success(results.ToArray());
+                _logger.Debug($"Retrieved {results.Length} groups");
+                return MT5Result<T[]>.Success(results);
             }, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)

@@ -1,4 +1,5 @@
 using MT5Bridge.Manager.Models;
+using MT5Bridge.Core.Collections;
 using MetaQuotes.MT5CommonAPI;
 
 // Proto extensions
@@ -128,17 +129,9 @@ public partial class MT5Manager
                 }
 
                 var total = _orderArray.Total();
-                var results = new List<T>((int)total);
-                for (uint i = 0; i < total; i++)
-                {
-                    var order = _orderArray.Next(i);
-                    if (order != null)
-                    {
-                        results.Add(converter(order));
-                    }
-                }
+                var results = ArrayUtils.Convert(total, i => _orderArray.Next(i), converter);
 
-                return MT5Result<T[]>.Success(results.ToArray());
+                return MT5Result<T[]>.Success(results);
             }, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -178,17 +171,9 @@ public partial class MT5Manager
                 }
 
                 var total = _positionArray.Total();
-                var results = new List<T>((int)total);
-                for (uint i = 0; i < total; i++)
-                {
-                    var position = _positionArray.Next(i);
-                    if (position != null)
-                    {
-                        results.Add(converter(position));
-                    }
-                }
+                var results = ArrayUtils.Convert(total, i => _positionArray.Next(i), converter);
 
-                return MT5Result<T[]>.Success(results.ToArray());
+                return MT5Result<T[]>.Success(results);
             }, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)

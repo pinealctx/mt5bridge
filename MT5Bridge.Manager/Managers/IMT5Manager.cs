@@ -289,6 +289,26 @@ public interface IMT5Manager : IDisposable
     Task<MT5Result<ProtoDeal[]>> GetDealsProtoAsync(long from, long to, string groupMask = "*", CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get deals with pagination (POCO)
+    /// </summary>
+    Task<MT5Result<DealModel[]>> GetDealsPageAsync(ulong login, DateTime from, DateTime to, uint offset, uint total, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get deals with pagination (POCO) - Unix timestamp
+    /// </summary>
+    Task<MT5Result<DealModel[]>> GetDealsPageAsync(ulong login, long from, long to, uint offset, uint total, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get deals with pagination (Protobuf)
+    /// </summary>
+    Task<MT5Result<ProtoDeal[]>> GetDealsPageProtoAsync(ulong login, DateTime from, DateTime to, uint offset, uint total, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get deals with pagination (Protobuf) - Unix timestamp
+    /// </summary>
+    Task<MT5Result<ProtoDeal[]>> GetDealsPageProtoAsync(ulong login, long from, long to, uint offset, uint total, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get specific deal by ticket (POCO)
     /// </summary>
     Task<MT5Result<DealModel>> GetDealAsync(ulong ticket, CancellationToken cancellationToken = default);

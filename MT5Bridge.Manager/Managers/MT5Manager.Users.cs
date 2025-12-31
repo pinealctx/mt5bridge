@@ -1,4 +1,5 @@
 using MetaQuotes.MT5CommonAPI;
+using MT5Bridge.Core.Collections;
 using MT5Bridge.Manager.Models;
 
 // Proto extensions
@@ -106,7 +107,8 @@ public partial class MT5Manager
             return MT5Result<T[]>.Success(Array.Empty<T>(), $"Offset {offset} exceeds total {total}");
         }
 
-        var pagedLogins = logins.Skip(actualOffset).Take(actualLimit).ToArray();
+        var pagedLogins = new ulong[actualLimit];
+        Array.Copy(logins, actualOffset, pagedLogins, 0, actualLimit);
 
         // Step 3: Batch fetch user details for the paged logins
         _userArray.Clear();
@@ -120,19 +122,12 @@ public partial class MT5Manager
 
         // Step 4: Convert users from the array
         var userCount = _userArray.Total();
-        var result = new List<T>((int)userCount);
+        var result = ArrayUtils.Convert(userCount, i => _userArray.Next(i), converter);
 
-        for (uint i = 0; i < userCount; i++)
-        {
-            var sourceUser = _userArray.Next(i);
-            if (sourceUser == null) continue;
-            result.Add(converter(sourceUser));
-        }
-
-        var message = $"Retrieved {result.Count} users (offset={actualOffset}, total={total}, group={groupName})";
+        var message = $"Retrieved {result.Length} users (offset={actualOffset}, total={total}, group={groupName})";
         _logger.Debug(message);
 
-        return MT5Result<T[]>.Success(result.ToArray(), message);
+        return MT5Result<T[]>.Success(result, message);
     }
 
     /// <summary>
@@ -170,18 +165,15 @@ public partial class MT5Manager
             return MT5Result<T[]>.Success(Array.Empty<T>(), $"Offset {offset} exceeds total {total}");
         }
 
-        var result = new List<T>(actualLimit);
-        for (var i = 0; i < actualLimit; i++)
-        {
-            var sourceUser = _userArray.Next((uint)(actualOffset + i));
-            if (sourceUser == null) break;
-            result.Add(converter(sourceUser));
-        }
+        var result = ArrayUtils.Convert(
+            (uint)actualLimit,
+            i => _userArray.Next((uint)(actualOffset + i)),
+            converter);
 
-        var message = $"Retrieved {result.Count} users (offset={actualOffset}, total={total}, mask={mask}, mode=memory-paging)";
+        var message = $"Retrieved {result.Length} users (offset={actualOffset}, total={total}, mask={mask}, mode=memory-paging)";
         _logger.Debug(message);
 
-        return MT5Result<T[]>.Success(result.ToArray(), message);
+        return MT5Result<T[]>.Success(result, message);
     }
 
     public async Task<MT5Result<UserModel>> GetUserAsync(ulong login, CancellationToken cancellationToken = default)

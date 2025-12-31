@@ -1,4 +1,5 @@
 using MT5Bridge.Manager.Models;
+using MT5Bridge.Core.Collections;
 using MetaQuotes.MT5CommonAPI;
 
 // Proto extensions
@@ -77,6 +78,34 @@ public partial class MT5Manager
     {
         return await GetDealsInternalAsync(
             arr => _manager!.DealRequestByGroup(groupMask, from, to, arr),
+            d => d.ToProto(),
+            null,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<MT5Result<DealModel[]>> GetDealsPageAsync(ulong login, DateTime from, DateTime to, uint offset, uint total, CancellationToken cancellationToken = default)
+    {
+        return await GetDealsPageAsync(login, SMTTime.FromDateTime(from), SMTTime.FromDateTime(to), offset, total, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<MT5Result<DealModel[]>> GetDealsPageAsync(ulong login, long from, long to, uint offset, uint total, CancellationToken cancellationToken = default)
+    {
+        return await GetDealsInternalAsync(
+            arr => _manager!.DealRequestPage(login, from, to, offset, total, arr),
+            d => d.ToModel(),
+            null,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<MT5Result<ProtoDeal[]>> GetDealsPageProtoAsync(ulong login, DateTime from, DateTime to, uint offset, uint total, CancellationToken cancellationToken = default)
+    {
+        return await GetDealsPageProtoAsync(login, SMTTime.FromDateTime(from), SMTTime.FromDateTime(to), offset, total, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<MT5Result<ProtoDeal[]>> GetDealsPageProtoAsync(ulong login, long from, long to, uint offset, uint total, CancellationToken cancellationToken = default)
+    {
+        return await GetDealsInternalAsync(
+            arr => _manager!.DealRequestPage(login, from, to, offset, total, arr),
             d => d.ToProto(),
             null,
             cancellationToken).ConfigureAwait(false);
@@ -175,17 +204,8 @@ public partial class MT5Manager
                 }
 
                 var total = _dealArray.Total();
-                var results = new List<T>((int)total);
-                for (uint i = 0; i < total; i++)
-                {
-                    var deal = _dealArray.Next(i);
-                    if (deal != null && (filter == null || filter(deal)))
-                    {
-                        results.Add(converter(deal));
-                    }
-                }
-
-                return MT5Result<T[]>.Success(results.ToArray());
+                var results = ArrayUtils.Convert(total, i => _dealArray.Next(i), converter, filter);
+                return MT5Result<T[]>.Success(results);
             }, cancellationToken);
         }
         catch (Exception ex)

@@ -35,7 +35,7 @@ public abstract class BaseCommand
             Login = login ?? ulong.Parse(Configuration["MT5Connection:Login"] ?? "0"),
             Password = finalPassword.Trim(),
             TimeoutMs = uint.Parse(Configuration["MT5Connection:TimeoutMs"] ?? "30000"),
-            PumpMode = PumpMode.Full
+            PumpMode = Enum.TryParse<PumpMode>(Configuration["MT5Connection:PumpMode"], out var mode) ? mode : PumpMode.Full
         };
     }
 
@@ -52,6 +52,9 @@ public abstract class BaseCommand
     /// </summary>
     protected async Task<IMT5Manager> ConnectAsync(MT5ConnectionSettings settings)
     {
+        Logger.Information("Connecting to MT5: Server={Server}, Login={Login}, PumpMode={PumpMode}, Timeout={TimeoutMs}ms",
+            settings.Server, settings.Login, settings.PumpMode, settings.TimeoutMs);
+
         var manager = new MT5Manager(Logger);
 
         // Subscribe to connection state changes
