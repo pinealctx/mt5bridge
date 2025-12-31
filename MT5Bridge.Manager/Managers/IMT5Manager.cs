@@ -39,7 +39,7 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Register a deal event handler (POCO)
     /// </summary>
-    void RegisterDealHandler(
+    MT5Result RegisterDealHandler(
         Action<DealModel>? onAdd = null,
         Action<DealModel>? onUpdate = null,
         Action<DealModel>? onDelete = null,
@@ -50,7 +50,7 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Register a deal event handler (Protobuf)
     /// </summary>
-    void RegisterDealProtoHandler(
+    MT5Result RegisterDealProtoHandler(
         Action<ProtoDeal>? onAdd = null,
         Action<ProtoDeal>? onUpdate = null,
         Action<ProtoDeal>? onDelete = null,
@@ -61,7 +61,7 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Register an order event handler (POCO)
     /// </summary>
-    void RegisterOrderHandler(
+    MT5Result RegisterOrderHandler(
         Action<OrderModel>? onAdd = null,
         Action<OrderModel>? onUpdate = null,
         Action<OrderModel>? onDelete = null,
@@ -71,7 +71,7 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Register an order event handler (Protobuf)
     /// </summary>
-    void RegisterOrderProtoHandler(
+    MT5Result RegisterOrderProtoHandler(
         Action<ProtoOrder>? onAdd = null,
         Action<ProtoOrder>? onUpdate = null,
         Action<ProtoOrder>? onDelete = null,
@@ -81,7 +81,7 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Register a position event handler (POCO)
     /// </summary>
-    void RegisterPositionHandler(
+    MT5Result RegisterPositionHandler(
         Action<PositionModel>? onAdd = null,
         Action<PositionModel>? onUpdate = null,
         Action<PositionModel>? onDelete = null,
@@ -91,7 +91,7 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Register a position event handler (Protobuf)
     /// </summary>
-    void RegisterPositionProtoHandler(
+    MT5Result RegisterPositionProtoHandler(
         Action<ProtoPosition>? onAdd = null,
         Action<ProtoPosition>? onUpdate = null,
         Action<ProtoPosition>? onDelete = null,
@@ -101,7 +101,7 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Register a manager event handler (POCO)
     /// </summary>
-    void RegisterManagerHandler(
+    MT5Result RegisterManagerHandler(
         Action? onConnect = null,
         Action? onDisconnect = null,
         Action<MTRetCode, long, UserModel, AccountModel, List<OrderModel>, List<PositionModel>>? onTradeAccountSet = null);
@@ -109,7 +109,7 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Register a manager event handler (Protobuf)
     /// </summary>
-    void RegisterManagerProtoHandler(
+    MT5Result RegisterManagerProtoHandler(
         Action? onConnect = null,
         Action? onDisconnect = null,
         Action<MTRetCode, long, ProtoUser, ProtoAccount, List<ProtoOrder>, List<ProtoPosition>>? onTradeAccountSet = null);
@@ -122,6 +122,12 @@ public interface IMT5Manager : IDisposable
     /// Connect to MT5 server
     /// </summary>
     Task<MT5Result> ConnectAsync(MT5ConnectionSettings settings, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Start automatic reconnection with exponential backoff
+    /// Application is responsible for calling this when needed
+    /// </summary>
+    Task StartAutoReconnectAsync();
 
     /// <summary>
     /// Disconnect from MT5 server
@@ -255,12 +261,12 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Get user deals (Protobuf)
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.DealModel[]>> GetDealsProtoAsync(ulong login, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoDeal[]>> GetDealsProtoAsync(ulong login, DateTime from, DateTime to, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get user deals (Protobuf) - Unix timestamp
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.DealModel[]>> GetDealsProtoAsync(ulong login, long from, long to, CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoDeal[]>> GetDealsProtoAsync(ulong login, long from, long to, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get deals by time range and group mask (POCO)
@@ -275,12 +281,12 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Get deals by time range and group mask (Protobuf)
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.DealModel[]>> GetDealsProtoAsync(DateTime from, DateTime to, string groupMask = "*", CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoDeal[]>> GetDealsProtoAsync(DateTime from, DateTime to, string groupMask = "*", CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get deals by time range and group mask (Protobuf) - Unix timestamp
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.DealModel[]>> GetDealsProtoAsync(long from, long to, string groupMask = "*", CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoDeal[]>> GetDealsProtoAsync(long from, long to, string groupMask = "*", CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get specific deal by ticket (POCO)
@@ -290,7 +296,7 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Get specific deal by ticket (Protobuf)
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.DealModel>> GetDealProtoAsync(ulong ticket, CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoDeal>> GetDealProtoAsync(ulong ticket, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get balance operations (deposits/withdrawals) (POCO)
@@ -305,12 +311,12 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Get balance operations (deposits/withdrawals) (Protobuf)
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.DealModel[]>> GetBalanceHistoryProtoAsync(ulong login, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoDeal[]>> GetBalanceHistoryProtoAsync(ulong login, DateTime from, DateTime to, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get balance operations (deposits/withdrawals) (Protobuf) - Unix timestamp
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.DealModel[]>> GetBalanceHistoryProtoAsync(ulong login, long from, long to, CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoDeal[]>> GetBalanceHistoryProtoAsync(ulong login, long from, long to, CancellationToken cancellationToken = default);
 
     #endregion
 
@@ -324,7 +330,7 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Get active orders for a user (Protobuf)
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.OrderModel[]>> GetOrdersProtoAsync(ulong login, CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoOrder[]>> GetOrdersProtoAsync(ulong login, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get history orders for a user (POCO)
@@ -339,12 +345,12 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Get history orders for a user (Protobuf)
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.OrderModel[]>> GetHistoryOrdersProtoAsync(ulong login, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoOrder[]>> GetHistoryOrdersProtoAsync(ulong login, DateTime from, DateTime to, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get history orders for a user (Protobuf) - Unix timestamp
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.OrderModel[]>> GetHistoryOrdersProtoAsync(ulong login, long from, long to, CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoOrder[]>> GetHistoryOrdersProtoAsync(ulong login, long from, long to, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get history orders by time range and group mask (POCO)
@@ -359,12 +365,12 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Get history orders by time range and group mask (Protobuf)
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.OrderModel[]>> GetHistoryOrdersProtoAsync(DateTime from, DateTime to, string groupMask = "*", CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoOrder[]>> GetHistoryOrdersProtoAsync(DateTime from, DateTime to, string groupMask = "*", CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get history orders by time range and group mask (Protobuf) - Unix timestamp
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.OrderModel[]>> GetHistoryOrdersProtoAsync(long from, long to, string groupMask = "*", CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoOrder[]>> GetHistoryOrdersProtoAsync(long from, long to, string groupMask = "*", CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get active positions for a user (POCO)
@@ -374,7 +380,7 @@ public interface IMT5Manager : IDisposable
     /// <summary>
     /// Get active positions for a user (Protobuf)
     /// </summary>
-    Task<MT5Result<MT5Bridge.Manager.Models.Proto.PositionModel[]>> GetPositionsProtoAsync(ulong login, CancellationToken cancellationToken = default);
+    Task<MT5Result<ProtoPosition[]>> GetPositionsProtoAsync(ulong login, CancellationToken cancellationToken = default);
 
     #endregion
 }

@@ -1,3 +1,5 @@
+using MT5Bridge.Manager.Reconnection;
+
 namespace MT5Bridge.Manager;
 
 /// <summary>
@@ -30,20 +32,45 @@ public class MT5ConnectionSettings
     /// </summary>
     public PumpMode PumpMode { get; set; } = PumpMode.Full;
 
-    /// <summary>
-    /// Enable auto-reconnect
-    /// </summary>
-    public bool AutoReconnect { get; set; } = true;
+    // ===== Reconnection Configuration =====
 
     /// <summary>
-    /// Reconnect interval in milliseconds
+    /// Reconnect delay in milliseconds
+    /// null or 0 = no reconnect (disabled)
+    /// with ReconnectMaxDelayMs = null or 0: fixed interval reconnect
+    /// with ReconnectMaxDelayMs > 0: exponential backoff reconnect
+    /// (default: 100)
     /// </summary>
-    public int ReconnectIntervalMs { get; set; } = 5000;
+    public int? ReconnectDelayMs { get; set; } = 100;
 
     /// <summary>
-    /// Maximum reconnect attempts (0 = infinite)
+    /// Maximum reconnect delay in milliseconds (for exponential backoff only)
+    /// null or 0 = fixed interval strategy using ReconnectDelayMs
+    /// with ReconnectDelayMs > 0 and ReconnectMaxDelayMs > 0: exponential backoff from ReconnectDelayMs to ReconnectMaxDelayMs
+    /// (default: 30000)
     /// </summary>
-    public int MaxReconnectAttempts { get; set; } = 0;
+    public int? ReconnectMaxDelayMs { get; set; } = 30000;
+
+    /// <summary>
+    /// Get or create reconnection strategy based on configuration
+    /// </summary>
+    /// <returns>Reconnect strategy instance, or null if reconnection disabled</returns>
+    public IReconnectStrategy? GetReconnectStrategy()
+    {
+        // No reconnect if ReconnectDelayMs is null or 0
+        if (ReconnectDelayMs == null || ReconnectDelayMs == 0)
+            return null;
+
+        // Fixed interval: ReconnectMaxDelayMs is null or 0
+        if (ReconnectMaxDelayMs == null || ReconnectMaxDelayMs == 0)
+            return new FixedIntervalReconnectStrategy(ReconnectDelayMs.Value);
+
+        // Exponential backoff: both delay values > 0
+        return new ExponentialBackoffReconnectStrategy(
+            initialDelayMs: ReconnectDelayMs.Value,
+            maxDelayMs: ReconnectMaxDelayMs.Value);
+    }
+
 }
 
 /// <summary>

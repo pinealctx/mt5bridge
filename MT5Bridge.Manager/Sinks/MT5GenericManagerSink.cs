@@ -1,5 +1,6 @@
 using MetaQuotes.MT5CommonAPI;
 using MetaQuotes.MT5ManagerAPI;
+using Serilog;
 
 namespace MT5Bridge.Manager.Sinks;
 
@@ -23,6 +24,7 @@ internal class MT5GenericManagerSink<TUser, TAccount, TOrder, TPosition> : CIMTM
     private readonly Action? _onConnect;
     private readonly Action? _onDisconnect;
     private readonly Action<MTRetCode, long, TUser, TAccount, List<TOrder>, List<TPosition>>? _onTradeAccountSet;
+    private readonly ILogger? _logger;
 
     public MT5GenericManagerSink(
         Action? onConnect = null,
@@ -31,7 +33,8 @@ internal class MT5GenericManagerSink<TUser, TAccount, TOrder, TPosition> : CIMTM
         Func<CIMTAccount, TAccount>? accountConverter = null,
         Func<CIMTOrder, TOrder>? orderConverter = null,
         Func<CIMTPosition, TPosition>? positionConverter = null,
-        Action<MTRetCode, long, TUser, TAccount, List<TOrder>, List<TPosition>>? onTradeAccountSet = null)
+        Action<MTRetCode, long, TUser, TAccount, List<TOrder>, List<TPosition>>? onTradeAccountSet = null,
+        ILogger? logger = null)
     {
         _onConnect = onConnect;
         _onDisconnect = onDisconnect;
@@ -40,16 +43,31 @@ internal class MT5GenericManagerSink<TUser, TAccount, TOrder, TPosition> : CIMTM
         _orderConverter = orderConverter;
         _positionConverter = positionConverter;
         _onTradeAccountSet = onTradeAccountSet;
+        _logger = logger;
     }
 
     public override void OnConnect()
     {
-        _onConnect?.Invoke();
+        try
+        {
+            _onConnect?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error(ex, "Error in OnConnect handler");
+        }
     }
 
     public override void OnDisconnect()
     {
-        _onDisconnect?.Invoke();
+        try
+        {
+            _onDisconnect?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error(ex, "Error in OnDisconnect handler");
+        }
     }
 
     public override void OnTradeAccountSet(
@@ -63,38 +81,45 @@ internal class MT5GenericManagerSink<TUser, TAccount, TOrder, TPosition> : CIMTM
         if (_onTradeAccountSet != null && _userConverter != null && _accountConverter != null &&
             _orderConverter != null && _positionConverter != null)
         {
-            var userModel = _userConverter(user);
-            var accountModel = _accountConverter(account);
-
-            var orderList = new List<TOrder>();
-            if (orders != null)
+            try
             {
-                var totalOrders = orders.Total();
-                for (uint i = 0; i < totalOrders; i++)
+                var userModel = _userConverter(user);
+                var accountModel = _accountConverter(account);
+
+                var orderList = new List<TOrder>();
+                if (orders != null)
                 {
-                    var order = orders.Next(i);
-                    if (order != null)
+                    var totalOrders = orders.Total();
+                    for (uint i = 0; i < totalOrders; i++)
                     {
-                        orderList.Add(_orderConverter(order));
+                        var order = orders.Next(i);
+                        if (order != null)
+                        {
+                            orderList.Add(_orderConverter(order));
+                        }
                     }
                 }
-            }
 
-            var positionList = new List<TPosition>();
-            if (positions != null)
-            {
-                var totalPos = positions.Total();
-                for (uint i = 0; i < totalPos; i++)
+                var positionList = new List<TPosition>();
+                if (positions != null)
                 {
-                    var position = positions.Next(i);
-                    if (position != null)
+                    var totalPos = positions.Total();
+                    for (uint i = 0; i < totalPos; i++)
                     {
-                        positionList.Add(_positionConverter(position));
+                        var position = positions.Next(i);
+                        if (position != null)
+                        {
+                            positionList.Add(_positionConverter(position));
+                        }
                     }
                 }
-            }
 
-            _onTradeAccountSet(retcode, request_id, userModel, accountModel, orderList, positionList);
+                _onTradeAccountSet(retcode, request_id, userModel, accountModel, orderList, positionList);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, "Error in OnTradeAccountSet handler for request {RequestId}", request_id);
+            }
         }
     }
 }

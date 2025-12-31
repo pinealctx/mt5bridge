@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using MetaQuotes.MT5CommonAPI;
 
 namespace MT5Bridge.Manager.Models;

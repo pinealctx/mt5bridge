@@ -111,20 +111,35 @@ var protoUsersResult = await manager.GetUsersProtoAsync("*demo*", offset: 0, lim
 
 ```csharp
 // Register POCO deal handler
-manager.RegisterDealHandler(
+var dealResult = manager.RegisterDealHandler(
     onAdd: deal => Console.WriteLine($"New Deal: {deal.Deal} - {deal.Symbol}"),
     onUpdate: deal => Console.WriteLine($"Updated Deal: {deal.Deal}"),
     onDelete: deal => Console.WriteLine($"Deleted Deal: {deal.Deal}")
 );
+if (!dealResult.IsSuccess)
+{
+    Console.WriteLine($"Failed to register deal handler: {dealResult.Message}");
+    return;
+}
 
 // Register Protobuf order handler (for low-latency scenarios)
-manager.RegisterOrderProtoHandler(
+var orderResult = manager.RegisterOrderProtoHandler(
     onAdd: order => ProcessOrder(order),
     onUpdate: order => UpdateOrder(order)
 );
+if (!orderResult.IsSuccess)
+{
+    Console.WriteLine($"Failed to register order handler: {orderResult.Message}");
+    return;
+}
 
 // Events are automatically triggered when subscribed
-await manager.ConnectAsync(settings);
+var connectResult = await manager.ConnectAsync(settings);
+if (!connectResult.IsSuccess)
+{
+    Console.WriteLine($"Connection failed: {connectResult.Message}");
+    return;
+}
 ```
 
 #### 4. Account Operations
@@ -314,14 +329,14 @@ RegisterDealProtoHandler()  → MT5GenericDealSink<Proto.DealModel>
 
 #### Event Registration
 
-| Method                                           | Parameters       | Description              |
-| ------------------------------------------------ | ---------------- | ------------------------ |
-| `RegisterDealHandler(onAdd, onUpdate, onDelete)` | Action callbacks | POCO deal events         |
-| `RegisterDealProtoHandler(...)`                  | Same             | Protobuf deal events     |
-| `RegisterOrderHandler(...)`                      | Action callbacks | POCO order events        |
-| `RegisterOrderProtoHandler(...)`                 | Same             | Protobuf order events    |
-| `RegisterPositionHandler(...)`                   | Action callbacks | POCO position events     |
-| `RegisterPositionProtoHandler(...)`              | Same             | Protobuf position events |
+| Method                                           | Parameters       | Return Type | Description              |
+| ------------------------------------------------ | ---------------- | ----------- | ------------------------ |
+| `RegisterDealHandler(onAdd, onUpdate, onDelete)` | Action callbacks | `MT5Result` | POCO deal events         |
+| `RegisterDealProtoHandler(...)`                  | Same             | `MT5Result` | Protobuf deal events     |
+| `RegisterOrderHandler(...)`                      | Action callbacks | `MT5Result` | POCO order events        |
+| `RegisterOrderProtoHandler(...)`                 | Same             | `MT5Result` | Protobuf order events    |
+| `RegisterPositionHandler(...)`                   | Action callbacks | `MT5Result` | POCO position events     |
+| `RegisterPositionProtoHandler(...)`              | Same             | `MT5Result` | Protobuf position events |
 
 ---
 
@@ -404,7 +419,10 @@ await manager.ConnectAsync(settings);
 
 #### 2. Error Handling
 
+All public operations return `MT5Result` or `MT5Result<T>` which must be checked:
+
 ```csharp
+// Always check returned results
 var result = await manager.GetUserAsync(12345);
 if (result.IsSuccess && result.Data != null)
 {
@@ -414,6 +432,40 @@ if (result.IsSuccess && result.Data != null)
 else
 {
     logger.Error($"Failed to get user: {result.Message} (RetCode: {result.RetCode})");
+}
+```
+
+#### 2.1 Event Handler Registration Results
+
+Handler registration methods return `MT5Result` and **must be checked** before connecting:
+
+```csharp
+// Register POCO deal handler and check result
+var dealResult = manager.RegisterDealHandler(
+    onAdd: deal => Console.WriteLine($"Deal: {deal.Deal}")
+);
+if (!dealResult.IsSuccess)
+{
+    logger.Error($"Failed to register deal handler: {dealResult.Message}");
+    return;  // Cannot continue without handler
+}
+
+// Register order handler
+var orderResult = manager.RegisterOrderHandler(
+    onAdd: order => Console.WriteLine($"Order: {order.Order}")
+);
+if (!orderResult.IsSuccess)
+{
+    logger.Error($"Failed to register order handler: {orderResult.Message}");
+    return;
+}
+
+// Now safe to connect
+var connectResult = await manager.ConnectAsync(settings);
+if (!connectResult.IsSuccess)
+{
+    logger.Error($"Connection failed: {connectResult.Message}");
+    return;
 }
 ```
 
@@ -542,14 +594,114 @@ dotnet build MT5Bridge.Manager.csproj -c Release
 
 ### 🎯 快速开始
 
-详细的快速开始示例请参见英文文档部分。主要包括：
+#### 1. 基本连接
 
-1. 基本连接
-2. 获取用户
-3. 实时事件流
-4. 账户操作
-5. 交易历史
-6. 组管理
+```csharp
+using MT5Bridge.Manager;
+using MT5Bridge.Manager.Managers;
+using Serilog;
+
+// 创建日志记录器
+var logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateLogger();
+
+// 创建管理器
+using var manager = new MT5Manager(logger);
+
+// 配置连接
+var settings = new MT5ConnectionSettings
+{
+    Server = "localhost:443",
+    Login = 1001,
+    Password = "manager_password",
+    TimeoutMs = 30000,
+    PumpMode = PumpMode.Full
+};
+
+// 连接
+var result = await manager.ConnectAsync(settings);
+if (result.IsSuccess)
+{
+    Console.WriteLine("已连接到 MT5 服务器！");
+}
+else
+{
+    Console.WriteLine($"连接失败: {result.Message}");
+}
+```
+
+#### 2. 获取用户
+
+```csharp
+// 按组获取用户（POCO 模型）
+var usersResult = await manager.GetUsersAsync("*demo*", offset: 0, limit: 100);
+if (usersResult.IsSuccess && usersResult.Data != null)
+{
+    foreach (var user in usersResult.Data)
+    {
+        Console.WriteLine($"用户: {user.Login} - {user.Name}");
+    }
+}
+```
+
+#### 3. 实时事件流
+
+```csharp
+// 注册 POCO 成交处理器
+var dealResult = manager.RegisterDealHandler(
+    onAdd: deal => Console.WriteLine($"新成交: {deal.Deal} - {deal.Symbol}"),
+    onUpdate: deal => Console.WriteLine($"成交更新: {deal.Deal}"),
+    onDelete: deal => Console.WriteLine($"成交删除: {deal.Deal}")
+);
+if (!dealResult.IsSuccess)
+{
+    Console.WriteLine($"成交处理器注册失败: {dealResult.Message}");
+    return;
+}
+
+// 注册 Protobuf 订单处理器（低延迟场景）
+var orderResult = manager.RegisterOrderProtoHandler(
+    onAdd: order => ProcessOrder(order),
+    onUpdate: order => UpdateOrder(order)
+);
+if (!orderResult.IsSuccess)
+{
+    Console.WriteLine($"订单处理器注册失败: {orderResult.Message}");
+    return;
+}
+
+// 连接后事件自动触发
+var connectResult = await manager.ConnectAsync(settings);
+if (!connectResult.IsSuccess)
+{
+    Console.WriteLine($"连接失败: {connectResult.Message}");
+    return;
+}
+```
+
+#### 4. 账户操作
+
+```csharp
+// 获取账户信息
+var accountResult = await manager.GetAccountAsync(12345);
+if (accountResult.IsSuccess && accountResult.Data != null)
+{
+    var account = accountResult.Data;
+    Console.WriteLine($"余额: {account.Balance}, 权益: {account.Equity}");
+}
+
+// 存款
+var depositResult = await manager.DepositAsync(
+    login: 12345,
+    amount: 1000.00m,
+    comment: "通过 API 存款"
+);
+if (depositResult.IsSuccess)
+{
+    Console.WriteLine("存款成功");
+}
+```
 
 ---
 
@@ -665,7 +817,10 @@ await manager.ConnectAsync(settings);
 
 #### 2. 错误处理
 
+所有公开操作都返回 `MT5Result` 或 `MT5Result<T>`，**必须被检查**：
+
 ```csharp
+// 始终检查返回的结果
 var result = await manager.GetUserAsync(12345);
 if (result.IsSuccess && result.Data != null)
 {
@@ -675,6 +830,40 @@ if (result.IsSuccess && result.Data != null)
 else
 {
     logger.Error($"获取用户失败: {result.Message} (RetCode: {result.RetCode})");
+}
+```
+
+#### 2.1 事件处理器注册结果
+
+处理器注册方法返回 `MT5Result`，**必须在连接前检查**：
+
+```csharp
+// 注册 POCO 成交处理器并检查结果
+var dealResult = manager.RegisterDealHandler(
+    onAdd: deal => Console.WriteLine($"成交: {deal.Deal}")
+);
+if (!dealResult.IsSuccess)
+{
+    logger.Error($"成交处理器注册失败: {dealResult.Message}");
+    return;  // 没有处理器无法继续
+}
+
+// 注册订单处理器
+var orderResult = manager.RegisterOrderHandler(
+    onAdd: order => Console.WriteLine($"订单: {order.Order}")
+);
+if (!orderResult.IsSuccess)
+{
+    logger.Error($"订单处理器注册失败: {orderResult.Message}");
+    return;
+}
+
+// 现在可以安全连接
+var connectResult = await manager.ConnectAsync(settings);
+if (!connectResult.IsSuccess)
+{
+    logger.Error($"连接失败: {connectResult.Message}");
+    return;
 }
 ```
 

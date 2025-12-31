@@ -29,7 +29,7 @@ This test project validates the core functionality of MT5Bridge.Manager without 
 
 #### 1. GenericEventHandlerRegistrationTests (11 tests)
 
-Validates the generic event handler registration system for both POCO and Protobuf models.
+Validates the generic event handler registration system for both POCO and Protobuf models, verifying proper `MT5Result` return value handling.
 
 **What's Tested:**
 - ✅ Manager creation and proper disposal
@@ -39,14 +39,31 @@ Validates the generic event handler registration system for both POCO and Protob
 - ✅ Handlers with all callbacks (onAdd, onUpdate, onDelete)
 - ✅ Handlers with partial/null callbacks
 - ✅ Handler lifecycle management
+- ✅ `MT5Result` return value validation
+- ✅ Success/failure status checking
 
 **Key Test Cases:**
 ```csharp
 [Fact] public void RegisterDealHandler_ShouldNotThrow()
-[Fact] public void RegisterDealProtoHandler_ShouldNotThrow()
-[Fact] public void RegisterOrderHandler_ShouldNotThrow()
-[Fact] public void RegisterPositionHandler_ShouldNotThrow()
-[Fact] public void RegisterMultipleDealHandlers_ShouldNotThrow()
+{
+    using var manager = new MT5Manager(_logger);
+    var result = manager.RegisterDealHandler(onAdd: deal => { });
+    
+    // Must check MT5Result return value
+    Assert.NotNull(result);
+    Assert.True(result.IsSuccess, result.Message);
+}
+
+[Fact] public void RegisterMultipleHandlers_ShouldNotThrow()
+{
+    using var manager = new MT5Manager(_logger);
+    var dealResult = manager.RegisterDealHandler(onAdd: _ => { });
+    var orderResult = manager.RegisterOrderHandler(onAdd: _ => { });
+    
+    // Check each result before proceeding
+    Assert.True(dealResult.IsSuccess, dealResult.Message);
+    Assert.True(orderResult.IsSuccess, orderResult.Message);
+}
 ```
 
 **Limitations:**
@@ -439,7 +456,7 @@ MT5Bridge.Manager 库的综合测试套件，涵盖泛型事件处理器、双�
 
 #### 1. GenericEventHandlerRegistrationTests（11 个测试）
 
-验证 POCO 和 Protobuf 模型的泛型事件处理器注册系统。
+验证 POCO 和 Protobuf 模型的泛型事件处理器注册系统，确保正确处理 `MT5Result` 返回值。
 
 **测试内容：**
 - ✅ Manager 创建和正确释放
@@ -449,6 +466,34 @@ MT5Bridge.Manager 库的综合测试套件，涵盖泛型事件处理器、双�
 - ✅ 包含所有回调的处理器（onAdd、onUpdate、onDelete）
 - ✅ 部分/空回调的处理器
 - ✅ 处理器生命周期管理
+- ✅ `MT5Result` 返回值验证
+- ✅ 成功/失败状态检查
+
+**关键测试用例：**
+```csharp
+[Fact]
+public void RegisterDealHandler_ShouldNotThrow()
+{
+    using var manager = new MT5Manager(_logger);
+    // 必须检查 MT5Result 返回值
+    var result = manager.RegisterDealHandler(onAdd: deal => { });
+    
+    Assert.NotNull(result);
+    Assert.True(result.IsSuccess, result.Message);
+}
+
+[Fact]
+public void RegisterMultipleHandlers_ShouldNotThrow()
+{
+    using var manager = new MT5Manager(_logger);
+    var dealResult = manager.RegisterDealHandler(onAdd: _ => { });
+    var orderResult = manager.RegisterOrderHandler(onAdd: _ => { });
+    
+    // 检查每个结果再继续处理
+    Assert.True(dealResult.IsSuccess, dealResult.Message);
+    Assert.True(orderResult.IsSuccess, orderResult.Message);
+}
+```
 
 **限制：**
 - 这些测试验证注册不会抛出异常

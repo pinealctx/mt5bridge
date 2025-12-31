@@ -59,10 +59,10 @@ public class QueryBalanceOptions : CommonOptions
 [Verb("listen", HelpText = "Subscribe to real-time events")]
 public class ListenOptions : CommonOptions
 {
-    [Option('t', "types", Default = "deal", HelpText = "Comma-separated list of event types (deal, order, position, all)")]
+    [Option('t', "types", Default = "deal", HelpText = "Comma-separated list of event types (deal, order, position, all, slim)")]
     public string Types { get; set; } = "deal";
 
-    [Option("mode", Default = "poco", HelpText = "Handler mode: poco, protobuf, mixed")]
+    [Option("mode", Default = "poco", HelpText = "Handler mode: poco, protobuf")]
     public string Mode { get; set; } = "poco";
 }
 

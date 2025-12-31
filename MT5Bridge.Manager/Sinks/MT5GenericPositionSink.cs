@@ -1,5 +1,5 @@
 using MetaQuotes.MT5CommonAPI;
-using MetaQuotes.MT5ManagerAPI;
+using Serilog;
 
 namespace MT5Bridge.Manager.Sinks;
 
@@ -15,6 +15,7 @@ internal class MT5GenericPositionSink<T> : CIMTPositionSink where T : class
     private readonly Action<T>? _onDelete;
     private readonly Action<ulong>? _onClean;
     private readonly Action? _onSync;
+    private readonly ILogger? _logger;
 
     public MT5GenericPositionSink(
         Func<CIMTPosition, T> converter,
@@ -22,7 +23,8 @@ internal class MT5GenericPositionSink<T> : CIMTPositionSink where T : class
         Action<T>? onUpdate,
         Action<T>? onDelete,
         Action<ulong>? onClean = null,
-        Action? onSync = null)
+        Action? onSync = null,
+        ILogger? logger = null)
     {
         _converter = converter ?? throw new ArgumentNullException(nameof(converter));
         _onAdd = onAdd;
@@ -30,14 +32,22 @@ internal class MT5GenericPositionSink<T> : CIMTPositionSink where T : class
         _onDelete = onDelete;
         _onClean = onClean;
         _onSync = onSync;
+        _logger = logger;
     }
 
     public override void OnPositionAdd(CIMTPosition position)
     {
         if (_onAdd != null)
         {
-            var model = _converter(position);
-            _onAdd(model);
+            try
+            {
+                var model = _converter(position);
+                _onAdd(model);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, "Error in OnPositionAdd handler");
+            }
         }
     }
 
@@ -45,8 +55,15 @@ internal class MT5GenericPositionSink<T> : CIMTPositionSink where T : class
     {
         if (_onUpdate != null)
         {
-            var model = _converter(position);
-            _onUpdate(model);
+            try
+            {
+                var model = _converter(position);
+                _onUpdate(model);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, "Error in OnPositionUpdate handler");
+            }
         }
     }
 
@@ -54,18 +71,39 @@ internal class MT5GenericPositionSink<T> : CIMTPositionSink where T : class
     {
         if (_onDelete != null)
         {
-            var model = _converter(position);
-            _onDelete(model);
+            try
+            {
+                var model = _converter(position);
+                _onDelete(model);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, "Error in OnPositionDelete handler");
+            }
         }
     }
 
     public override void OnPositionSync()
     {
-        _onSync?.Invoke();
+        try
+        {
+            _onSync?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error(ex, "Error in OnPositionSync handler");
+        }
     }
 
     public override void OnPositionClean(ulong login)
     {
-        _onClean?.Invoke(login);
+        try
+        {
+            _onClean?.Invoke(login);
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error(ex, "Error in OnPositionClean handler for login {Login}", login);
+        }
     }
 }

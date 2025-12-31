@@ -10,7 +10,7 @@ public class MT5ManagerSinkTests
     {
         // Arrange
         bool invoked = false;
-        using var sink = new MT5ManagerSink(() => invoked = true);
+        using var sink = new MT5ManagerSink(onDisconnect: () => invoked = true);
 
         // Act
         sink.OnDisconnect();

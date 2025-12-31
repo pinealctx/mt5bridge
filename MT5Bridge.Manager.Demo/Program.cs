@@ -41,47 +41,13 @@ public static class Program
 
     public static async Task<int> Main(string[] args)
     {
-        Console.WriteLine("=== MT5Bridge CLI ===\n");
-
-        // Parse to get config file path first
-        string configFile = "appsettings.json";
-        Parser.Default.ParseArguments<
-            QueryGroupsOptions,
-            QueryUserOptions,
-            QueryAccountOptions,
-            QueryDealsOptions,
-            QueryBalanceOptions,
-            ListenOptions,
-            DepositOptions,
-            WithdrawOptions>(args)
-            .WithParsed<CommonOptions>(opts => configFile = opts.ConfigFile);
-
-        // Load configuration
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile(configFile, optional: true, reloadOnChange: false)
-            .Build();
-
-        // Configure Serilog
-        var serilogConfig = new SerilogConfig();
-        configuration.GetSection("Logging").Bind(serilogConfig);
-
-        // Default to console if not configured
-        if (!serilogConfig.Console.Enabled && !serilogConfig.File.Enabled && !serilogConfig.CloudWatch.Enabled)
-        {
-            serilogConfig.Console.Enabled = true;
-        }
-
-        var logger = SerilogBootstrapper.CreateLogger(serilogConfig);
-
-        // Initialize command handlers
-        var queryCmd = new QueryCommand(logger, configuration);
-        var listenCmd = new ListenCommand(logger, configuration);
-        var tradeCmd = new TradeCommand(logger, configuration);
-
         try
         {
-            return await Parser.Default.ParseArguments<
+            Console.WriteLine("=== MT5Bridge CLI ===\n");
+
+            // Parse to get config file path first
+            string configFile = "appsettings.json";
+            Parser.Default.ParseArguments<
                 QueryGroupsOptions,
                 QueryUserOptions,
                 QueryAccountOptions,
@@ -90,32 +56,76 @@ public static class Program
                 ListenOptions,
                 DepositOptions,
                 WithdrawOptions>(args)
-                .MapResult(
-                    (QueryGroupsOptions opts) => queryCmd.GroupsAsync(opts.Server, opts.Login, opts.Password),
-                    (QueryUserOptions opts) => queryCmd.UserAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin),
-                    (QueryAccountOptions opts) => queryCmd.AccountAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin),
-                    (QueryDealsOptions opts) => queryCmd.DealsAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin, opts.Days),
-                    (QueryBalanceOptions opts) => queryCmd.BalanceHistoryAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin, opts.Days),
-                    (ListenOptions opts) => listenCmd.RunAsync(opts.Server, opts.Login, opts.Password, opts.Types, opts.Mode),
-                    (DepositOptions opts) => tradeCmd.DepositAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin, opts.Amount, opts.Comment),
-                    (WithdrawOptions opts) => tradeCmd.WithdrawAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin, opts.Amount, opts.Comment),
-                    errs => Task.FromResult(1));
+                .WithParsed<CommonOptions>(opts => configFile = opts.ConfigFile);
+
+            // Load configuration
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile(configFile, optional: true, reloadOnChange: false)
+                .Build();
+
+            // Configure Serilog
+            var serilogConfig = new SerilogConfig();
+            configuration.GetSection("Logging").Bind(serilogConfig);
+
+            // Default to console if not configured
+            if (!serilogConfig.Console.Enabled && !serilogConfig.File.Enabled && !serilogConfig.CloudWatch.Enabled)
+            {
+                serilogConfig.Console.Enabled = true;
+            }
+
+            var logger = SerilogBootstrapper.CreateLogger(serilogConfig);
+
+            // Initialize command handlers
+            var queryCmd = new QueryCommand(logger, configuration);
+            var listenCmd = new ListenCommand(logger, configuration);
+            var tradeCmd = new TradeCommand(logger, configuration);
+
+            try
+            {
+                return await Parser.Default.ParseArguments<
+                    QueryGroupsOptions,
+                    QueryUserOptions,
+                    QueryAccountOptions,
+                    QueryDealsOptions,
+                    QueryBalanceOptions,
+                    ListenOptions,
+                    DepositOptions,
+                    WithdrawOptions>(args)
+                    .MapResult(
+                        (QueryGroupsOptions opts) => queryCmd.GroupsAsync(opts.Server, opts.Login, opts.Password),
+                        (QueryUserOptions opts) => queryCmd.UserAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin),
+                        (QueryAccountOptions opts) => queryCmd.AccountAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin),
+                        (QueryDealsOptions opts) => queryCmd.DealsAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin, opts.Days),
+                        (QueryBalanceOptions opts) => queryCmd.BalanceHistoryAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin, opts.Days),
+                        (ListenOptions opts) => listenCmd.RunAsync(opts.Server, opts.Login, opts.Password, opts.Types, opts.Mode),
+                        (DepositOptions opts) => tradeCmd.DepositAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin, opts.Amount, opts.Comment),
+                        (WithdrawOptions opts) => tradeCmd.WithdrawAsync(opts.Server, opts.Login, opts.Password, opts.UserLogin, opts.Amount, opts.Comment),
+                        errs => Task.FromResult(1));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\nError: {ex.Message}");
+                logger?.Error(ex, "CLI error");
+                return 1;
+            }
+            finally
+            {
+                if (logger is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+                await Log.CloseAndFlushAsync();
+                Console.WriteLine("\nPress any key to exit...");
+                Console.ReadKey();
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"\nError: {ex.Message}");
-            logger.Error(ex, "CLI error");
+            // Top-level catch for unhandled exceptions
+            Console.WriteLine($"\nUnhandled exception: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
             return 1;
-        }
-        finally
-        {
-            if (logger is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
-            await Log.CloseAndFlushAsync();
-            Console.WriteLine("\nPress any key to exit...");
-            Console.ReadKey();
         }
     }
 }

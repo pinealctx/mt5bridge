@@ -41,6 +41,14 @@ public abstract class BaseCommand
 
     /// <summary>
     /// Connect to MT5 server with progress feedback
+    /// 
+    /// IMPORTANT: The returned MT5Manager must be disposed by the caller using a 'using' statement
+    /// or by calling Dispose() explicitly. This method does NOT return an IAsyncDisposable,
+    /// so the caller is responsible for resource management.
+    /// 
+    /// Example usage:
+    ///   using var manager = await ConnectAsync(settings);
+    ///   // manager is automatically disposed at the end of the using block
     /// </summary>
     protected async Task<IMT5Manager> ConnectAsync(MT5ConnectionSettings settings)
     {

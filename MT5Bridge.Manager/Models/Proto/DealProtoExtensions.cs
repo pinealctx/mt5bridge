@@ -1,5 +1,4 @@
 using MetaQuotes.MT5CommonAPI;
-using MetaQuotes.MT5ManagerAPI;
 
 namespace MT5Bridge.Manager.Models.Proto;
 

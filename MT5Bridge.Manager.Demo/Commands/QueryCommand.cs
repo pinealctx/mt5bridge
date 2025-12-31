@@ -28,11 +28,10 @@ public class QueryCommand : BaseCommand
         }
 
         var groups = result.Data!;
-        Console.WriteLine($"Found {groups.Length} groups:\n");
-
+        Logger.Information("Found {GroupCount} groups", groups.Length);
         foreach (var group in groups)
         {
-            Console.WriteLine($"  {group.Group}");
+            Logger.Information("  Group: {Group}", group.Group);
         }
 
         return 0;
@@ -53,21 +52,19 @@ public class QueryCommand : BaseCommand
         }
 
         var user = result.Data!;
-        Console.WriteLine($"Login:       {user.Login}");
-
+        Logger.Information("User Login: {Login}", user.Login);
 #pragma warning disable CS0618 // Type or member is obsolete
-        Console.WriteLine($"Name:        {user.Name}");
+        Logger.Information("Name: {Name}", user.Name);
 #pragma warning restore CS0618
-
-        Console.WriteLine($"First Name:  {user.FirstName}");
-        Console.WriteLine($"Middle Name: {user.MiddleName}");
-        Console.WriteLine($"Last Name:   {user.LastName}");
-        Console.WriteLine($"Email:       {user.Email}");
-        Console.WriteLine($"Group:       {user.Group}");
-        Console.WriteLine($"Status:      {user.Status}");
-        Console.WriteLine($"Leverage:    {user.Leverage}");
-        Console.WriteLine($"Agent:       {user.Agent}");
-        Console.WriteLine($"Registration: {user.Registration}");
+        Logger.Information("First Name: {FirstName}", user.FirstName);
+        Logger.Information("Middle Name: {MiddleName}", user.MiddleName);
+        Logger.Information("Last Name: {LastName}", user.LastName);
+        Logger.Information("Email: {Email}", user.Email);
+        Logger.Information("Group: {Group}", user.Group);
+        Logger.Information("Status: {Status}", user.Status);
+        Logger.Information("Leverage: {Leverage}", user.Leverage);
+        Logger.Information("Agent: {Agent}", user.Agent);
+        Logger.Information("Registration: {Registration}", user.Registration);
 
         return 0;
     }
@@ -87,14 +84,14 @@ public class QueryCommand : BaseCommand
         }
 
         var account = result.Data!;
-        Console.WriteLine($"Login:      {account.Login}");
-        Console.WriteLine($"Balance:    {account.Balance:F2}");
-        Console.WriteLine($"Credit:     {account.Credit:F2}");
-        Console.WriteLine($"Equity:     {account.Equity:F2}");
-        Console.WriteLine($"Margin:     {account.Margin:F2}");
-        Console.WriteLine($"Free Margin: {account.MarginFree:F2}");
-        Console.WriteLine($"Margin Level: {account.MarginLevel:F2}%");
-        Console.WriteLine($"Profit:     {account.Profit:F2}");
+        Logger.Information("Account Login: {Login}", account.Login);
+        Logger.Information("Balance: {Balance:F2}", account.Balance);
+        Logger.Information("Credit: {Credit:F2}", account.Credit);
+        Logger.Information("Equity: {Equity:F2}", account.Equity);
+        Logger.Information("Margin: {Margin:F2}", account.Margin);
+        Logger.Information("Free Margin: {MarginFree:F2}", account.MarginFree);
+        Logger.Information("Margin Level: {MarginLevel:F2}%", account.MarginLevel);
+        Logger.Information("Profit: {Profit:F2}", account.Profit);
 
         return 0;
     }
@@ -117,21 +114,19 @@ public class QueryCommand : BaseCommand
         }
 
         var deals = result.Data!;
-        Console.WriteLine($"Found {deals.Length} deals:\n");
+        Logger.Information("Found {DealCount} deals", deals.Length);
 
         for (int i = 0; i < Math.Min(deals.Length, 20); i++) // Show first 20
         {
             var deal = deals[i];
-            Console.WriteLine($"  Deal #{deal.Deal}: {deal.Symbol}, " +
-                            $"Action: {deal.Action}, " +
-                            $"Price: {deal.Price:F5}, " +
-                            $"Volume: {deal.Volume}, " +
-                            $"Profit: {deal.Profit:F2}");
+            Logger.Information(
+                "  Deal #{Deal}: {Symbol}, Action: {Action}, Price: {Price:F5}, Volume: {Volume}, Profit: {Profit:F2}",
+                deal.Deal, deal.Symbol, deal.Action, deal.Price, deal.Volume, deal.Profit);
         }
 
         if (deals.Length > 20)
         {
-            Console.WriteLine($"  ... and {deals.Length - 20} more");
+            Logger.Information("  ... and {MoreCount} more", deals.Length - 20);
         }
 
         return 0;
@@ -154,14 +149,13 @@ public class QueryCommand : BaseCommand
             return 1;
         }
 
-        Console.WriteLine($"{result.Message}\n");
+        Logger.Information("{ResultMessage}", result.Message);
 
         var deals = result.Data!;
         double totalChange = 0;
         int balanceCount = 0;
 
-        Console.WriteLine("Balance Operations:");
-        Console.WriteLine("---------------------------------------------------");
+        Logger.Information("Balance Operations:");
 
         foreach (var deal in deals)
         {
@@ -174,12 +168,13 @@ public class QueryCommand : BaseCommand
             var time = deal.Time;
             var operation = profit > 0 ? "Deposit" : "Withdrawal";
 
-            Console.WriteLine($"{time:yyyy-MM-dd HH:mm:ss} | {operation,10} | {profit,12:F2} | {deal.Comment}");
+            Logger.Information(
+                "{Time:yyyy-MM-dd HH:mm:ss} | {Operation,10} | {Profit,12:F2} | {Comment}",
+                time, operation, profit, deal.Comment);
         }
 
-        Console.WriteLine("---------------------------------------------------");
-        Console.WriteLine($"Total Balance Operations: {balanceCount}");
-        Console.WriteLine($"Net Balance Change: {totalChange:F2}");
+        Logger.Information("Total Balance Operations: {Count}", balanceCount);
+        Logger.Information("Net Balance Change: {TotalChange:F2}", totalChange);
 
         return 0;
     }

@@ -7,13 +7,9 @@ namespace MT5Bridge.Manager.Tests;
 
 /// <summary>
 /// Tests for generic event handler registration (RegisterDealHandler<T>, etc.).
-/// 测试泛型事件处理器注册（RegisterDealHandler<T> 等）。
 /// 
 /// Note: These tests only verify handler registration doesn't throw.
 /// Real event firing and MT5 SDK integration requires a live MT5 Server connection.
-/// 
-/// 注意：这些测试仅验证处理器注册不会抛出异常。
-/// 真实的事件触发和 MT5 SDK 集成需要实时的 MT5 Server 连接。
 /// </summary>
 public class GenericEventHandlerRegistrationTests
 {
@@ -58,11 +54,13 @@ public class GenericEventHandlerRegistrationTests
         using var manager = new MT5Manager(_logger);
 
         // Act
-        manager.RegisterDealHandler(
+        var result = manager.RegisterDealHandler(
             onAdd: deal => _output.WriteLine($"Deal: {deal.Deal} {deal.Symbol}")
         );
 
         // Assert
+        Assert.NotNull(result);
+        Assert.True(result.IsSuccess, result.Message);
         _output.WriteLine("POCO deal handler registered successfully");
     }
 
@@ -73,13 +71,15 @@ public class GenericEventHandlerRegistrationTests
         using var manager = new MT5Manager(_logger);
 
         // Act
-        manager.RegisterDealProtoHandler(
+        var result = manager.RegisterDealProtoHandler(
             onAdd: deal => _output.WriteLine($"Proto Deal Add: {deal.Deal} {deal.Symbol}"),
             onUpdate: deal => _output.WriteLine($"Proto Deal Update: {deal.Deal}"),
             onDelete: deal => _output.WriteLine($"Proto Deal Delete: {deal.Deal}")
         );
 
         // Assert
+        Assert.NotNull(result);
+        Assert.True(result.IsSuccess, result.Message);
         _output.WriteLine("Proto deal handler registered successfully");
     }
 
@@ -90,11 +90,13 @@ public class GenericEventHandlerRegistrationTests
         using var manager = new MT5Manager(_logger);
 
         // Act
-        manager.RegisterOrderHandler(
+        var result = manager.RegisterOrderHandler(
             onAdd: order => _output.WriteLine($"Order: {order.Order}")
         );
 
         // Assert
+        Assert.NotNull(result);
+        Assert.True(result.IsSuccess, result.Message);
         _output.WriteLine("POCO order handler registered successfully");
     }
 
@@ -105,11 +107,13 @@ public class GenericEventHandlerRegistrationTests
         using var manager = new MT5Manager(_logger);
 
         // Act
-        manager.RegisterOrderProtoHandler(
+        var result = manager.RegisterOrderProtoHandler(
             onAdd: order => _output.WriteLine($"Proto Order: {order.Order}")
         );
 
         // Assert
+        Assert.NotNull(result);
+        Assert.True(result.IsSuccess, result.Message);
         _output.WriteLine("Proto order handler registered successfully");
     }
 
@@ -120,11 +124,13 @@ public class GenericEventHandlerRegistrationTests
         using var manager = new MT5Manager(_logger);
 
         // Act
-        manager.RegisterPositionHandler(
+        var result = manager.RegisterPositionHandler(
             onAdd: pos => _output.WriteLine($"Position: {pos.Position}")
         );
 
         // Assert
+        Assert.NotNull(result);
+        Assert.True(result.IsSuccess, result.Message);
         _output.WriteLine("POCO position handler registered successfully");
     }
 
@@ -135,11 +141,13 @@ public class GenericEventHandlerRegistrationTests
         using var manager = new MT5Manager(_logger);
 
         // Act
-        manager.RegisterPositionProtoHandler(
+        var result = manager.RegisterPositionProtoHandler(
             onAdd: pos => _output.WriteLine($"Proto Position: {pos.Position}")
         );
 
         // Assert
+        Assert.NotNull(result);
+        Assert.True(result.IsSuccess, result.Message);
         _output.WriteLine("Proto position handler registered successfully");
     }
 
@@ -150,14 +158,20 @@ public class GenericEventHandlerRegistrationTests
         using var manager = new MT5Manager(_logger);
 
         // Act - Register multiple handlers
-        manager.RegisterDealHandler(onAdd: _ => { });
-        manager.RegisterDealProtoHandler(onAdd: _ => { });
-        manager.RegisterOrderHandler(onAdd: _ => { });
-        manager.RegisterOrderProtoHandler(onAdd: _ => { });
-        manager.RegisterPositionHandler(onAdd: _ => { });
-        manager.RegisterPositionProtoHandler(onAdd: _ => { });
+        var dealResult = manager.RegisterDealHandler(onAdd: _ => { });
+        var dealProtoResult = manager.RegisterDealProtoHandler(onAdd: _ => { });
+        var orderResult = manager.RegisterOrderHandler(onAdd: _ => { });
+        var orderProtoResult = manager.RegisterOrderProtoHandler(onAdd: _ => { });
+        var posResult = manager.RegisterPositionHandler(onAdd: _ => { });
+        var posProtoResult = manager.RegisterPositionProtoHandler(onAdd: _ => { });
 
         // Assert
+        Assert.True(dealResult.IsSuccess, dealResult.Message);
+        Assert.True(dealProtoResult.IsSuccess, dealProtoResult.Message);
+        Assert.True(orderResult.IsSuccess, orderResult.Message);
+        Assert.True(orderProtoResult.IsSuccess, orderProtoResult.Message);
+        Assert.True(posResult.IsSuccess, posResult.Message);
+        Assert.True(posProtoResult.IsSuccess, posProtoResult.Message);
         _output.WriteLine("Multiple handlers registered successfully");
     }
 
@@ -168,13 +182,15 @@ public class GenericEventHandlerRegistrationTests
         using var manager = new MT5Manager(_logger);
 
         // Act
-        manager.RegisterDealHandler(
+        var result = manager.RegisterDealHandler(
             onAdd: deal => _output.WriteLine($"Add: {deal.Deal}"),
             onUpdate: deal => _output.WriteLine($"Update: {deal.Deal}"),
             onDelete: deal => _output.WriteLine($"Delete: {deal.Deal}")
         );
 
         // Assert
+        Assert.NotNull(result);
+        Assert.True(result.IsSuccess, result.Message);
         _output.WriteLine("Handler with all callbacks registered successfully");
     }
 
@@ -185,13 +201,15 @@ public class GenericEventHandlerRegistrationTests
         using var manager = new MT5Manager(_logger);
 
         // Act - Null callbacks are valid
-        manager.RegisterDealHandler(
+        var result = manager.RegisterDealHandler(
             onAdd: null,
             onUpdate: null,
             onDelete: null
         );
 
         // Assert
+        Assert.NotNull(result);
+        Assert.True(result.IsSuccess, result.Message);
         _output.WriteLine("Handler with null callbacks registered successfully");
     }
 }

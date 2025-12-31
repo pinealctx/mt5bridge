@@ -1,5 +1,3 @@
-using System;
-
 namespace MT5Bridge.Manager.Models;
 
 /// <summary>
